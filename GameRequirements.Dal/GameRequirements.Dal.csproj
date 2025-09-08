@@ -12,4 +12,8 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Analyzers" Version="9.0.8" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\GameRequirements.Domain\GameRequirements.Domain.csproj" />
+  </ItemGroup>
+
 </Project>
