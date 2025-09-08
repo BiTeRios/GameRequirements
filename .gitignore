@@ -361,3 +361,20 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# === GameRequirements: фронт (Vite/React) ===
+/GameRequirements.UI/node_modules/
+/GameRequirements.UI/.vite/
+/GameRequirements.UI/build/
+/GameRequirements.UI/dist/
+/GameRequirements.UI/.env*
+/GameRequirements.UI/npm-debug.log*
+
+# === GameRequirements: статика API (сюда кладём сборку SPA) ===
+/GameRequirements.Api/wwwroot/*
+!/GameRequirements.Api/wwwroot/.gitkeep
+
+# === Локальные секреты/конфиги бэкенда (не коммитим) ===
+GameRequirements.Api/appsettings.*.local.json
+GameRequirements.Api/appsettings.Production.json
+/GameRequirements.Api/appsettings.json

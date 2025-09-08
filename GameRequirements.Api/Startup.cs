@@ -1,56 +1,39 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using GameRequirements.Api.Infrastructure.Extensions;
-using GameRequirements.Bll;
-using GameRequirements.Bll.Interfaces;
-using GameRequirements.Bll.Services;
-using GameRequirements.Dal;
-using GameRequirements.Dal.Interfaces;
-using GameRequirements.Dal.Repositories;
-using GameRequirements.Domain.Auth;
-using System.Data;
 
 namespace GameRequirements.Api
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration)
-        {
-            Configuration = configuration;
-        }
-
+        public Startup(IConfiguration configuration) => Configuration = configuration;
         public IConfiguration Configuration { get; }
 
-        // Use this method to add services to the container.
+        // 1) Регистрация сервисов
         public void AddServices(IServiceCollection services)
         {
-            services.AddDbContext<GameRequirementsDbContext>(optionBuilder =>
-            {
-                optionBuilder.UseSqlServer(Configuration.GetConnectionString("GameRequirementsConnection"));
-            });
-
-            services.AddIdentity<User, Role>(options =>
-            {
-                options.Password.RequiredLength = 8;
-            })
-            .AddEntityFrameworkStores<GameRequirementsDbContext>();
-
-            var authOptions = services.ConfigureAuthOptions(Configuration);
-            services.AddJwtAuthentication(authOptions);
+            // Только API-контроллеры — это у тебя есть.
             services.AddControllers();
 
-            services.AddScoped<IRepository, EFCoreRepository>();
-            services.AddScoped<IBookService, BookService>();
-            services.AddScoped<IPublisherService, PublisherService>();
-            services.AddAutoMapper(typeof(BllAssemblyMarker));
-            services.AddSwagger(Configuration);
+            // Swagger (стандартный)
+            services.AddEndpointsApiExplorer();
+            services.AddSwaggerGen();
+
+            // CORS для дев-режима. Если будешь использовать прокси — он не обязателен, но и не мешает.
+            services.AddCors(p =>
+            {
+                p.AddPolicy("DevUi", b => b
+                    .AllowAnyOrigin()
+                    .AllowAnyHeader()
+                    .AllowAnyMethod());
+            });
+
+            // ⛔ НЕ добавляю Identity/JWT/EF/AutoMapper/репозитории — в архиве нет готовых реализаций.
         }
 
-        //Use this method to configure the HTTP request pipeline.
+        // 2) HTTP-пайплайн
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
@@ -59,19 +42,29 @@ namespace GameRequirements.Api
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
-            app.UseExceptionHandling();
+            else
+            {
+                app.UseHttpsRedirection();
+            }
 
             app.UseRouting();
 
-            app.UseCors(configurePolicy => configurePolicy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
-            app.UseAuthentication();
+            // В деве — ок. Если настроишь Vite-прокси, CORS можно выключить.
+            app.UseCors("DevUi");
+
             app.UseAuthorization();
 
-            app.UseDbTransaction();
+            // === Хостинг SPA сборки (путь A: билд фронта лежит в wwwroot) ===
+            app.UseDefaultFiles(); // ищет index.html в wwwroot
+            app.UseStaticFiles();  // раздаёт js/css/img из wwwroot
 
             app.UseEndpoints(endpoints =>
             {
+                // API
                 endpoints.MapControllers();
+
+                // SPA fallback — любые НЕ-API маршруты отдаём index.html
+                endpoints.MapFallbackToFile("index.html");
             });
         }
     }
