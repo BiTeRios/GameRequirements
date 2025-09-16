@@ -5,7 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GameRequirements.Common.PasswordHash
+namespace GameRequirements.Bll.Helper.PasswordHash
 {
     public class PasswordHelper
     {

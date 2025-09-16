@@ -1,4 +1,4 @@
-﻿using GameRequirements.Domain.DBModel.User;
+﻿using GameRequirements.Domain.Entites.User;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -12,5 +12,6 @@ namespace GameRequirements.Domain.Context
     {
         //public UserConext() : base("name=") { }                        //Entry name DB later !!!!!!!!!!!!!!!!
         public virtual DbSet<DBUser> Users { get; set; }
+        public virtual DbSet<DBUserSession> Sessions { get; set; }
     }
 }

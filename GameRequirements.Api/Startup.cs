@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿using GameRequirements.Bll;
+using GameRequirements.Bll.Helper.Token;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +32,11 @@ namespace GameRequirements.Api
                     .AllowAnyMethod());
             });
 
+            // Конфигурация токена
+            services.Configure<TokenConfiguration>(Configuration.GetSection("TokenConfiguration"));
+            
+            // Регистрируем BussinesLogic как singleton
+            services.AddSingleton<BussinesLogic>();
             // ⛔ НЕ добавляю Identity/JWT/EF/AutoMapper/репозитории — в архиве нет готовых реализаций.
         }
 

@@ -11,5 +11,7 @@ namespace GameRequirements.Common.DTO.Auth
         public bool Success { get; set; } //Registration result
         public bool EmailSuccess { get; set; } //Check if a user with this email is registered
         public string Message { get; set; } //Message for the user
+        public string AccessToken { get; set; }   //JWT token
+        public string RefreshToken { get; set; } //Refresh token
     }
 }

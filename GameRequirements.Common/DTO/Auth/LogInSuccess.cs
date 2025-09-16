@@ -12,6 +12,9 @@ namespace GameRequirements.Common.DTO.Auth
         public bool EmailSuccess { get; set; } //Check if user is registered by email
         public bool PasswordSuccess { get; set; } //Password verification
         public string Message { get; set; }
-        public int UserId { get; set; }
+        public Guid UserId { get; set; }
+        public string AccessToken { get; set; }    // JWT токен
+        public string RefreshToken { get; set; }   // Токен обновления
+        public DateTime RefreshTokenExpiration { get; set; } // Срок действия refresh-токена (опционально)
     }
 }
