@@ -8,11 +8,8 @@ using System.Threading.Tasks;
 
 namespace GameRequirements.Domain.Entites.User
 {
-    public class DBUser
+    public class DBUser : BaseId
     {
-        [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public Guid Id { get; set; }
 
         [Required]
         [Display(Name = "Email Address")]

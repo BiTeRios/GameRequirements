@@ -12,15 +12,16 @@ namespace GameRequirements.Bll
 {
     public class BussinesLogic
     {
-        private readonly IOptions<TokenConfiguration> _tokenConfiguration;
+        private readonly ISessionBL _session;
 
-        public BussinesLogic(IOptions<TokenConfiguration> tokenConfiguration)
+        public BussinesLogic(ISessionBL session)
         {
-            _tokenConfiguration = tokenConfiguration;
+            _session = session;
         }
-        public ISession GetSessiionBL()
+
+        public ISessionBL GetSessionBL()
         {
-            return new SessionBL(_tokenConfiguration);
+            return _session;
         }
     }
 }

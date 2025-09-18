@@ -4,6 +4,7 @@ using GameRequirements.Bll.Interface;
 using GameRequirements.Common.DTO.Auth;
 using GameRequirements.Common.Exceptions;
 using GameRequirements.Dal.Core;
+using GameRequirements.Domain.Context;
 using GameRequirements.Domain.Entites.User;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -17,172 +18,171 @@ using System.Threading.Tasks;
 
 namespace GameRequirements.Bll.BL
 {
-    public class SessionBL : UserApi, ISession
+    public class SessionBL : ISessionBL
     {
         private readonly TokenService _tokenService;
         private readonly TokenConfiguration _tokenConfiguration;
+        private readonly UserRepository _userRepository;
 
-        public SessionBL(IOptions<TokenConfiguration> tokenConfiguration)
+        public SessionBL(IOptions<TokenConfiguration> tokenConfiguration, UserRepository userRepository, TokenService tokenService)
         {
             _tokenConfiguration = tokenConfiguration.Value;
+            _userRepository = userRepository;
+            _tokenService = tokenService;
         }
-        public SingInSuccess SingIn(SingInDTO singInDTO)
+        public async Task<AuthSuccessResponse> SingIn(SingInDTO singInDTO)
         {
-            var result = new SingInSuccess();
 
-            if (EmailExistsAction(singInDTO.Email))
+            if (_userRepository.EmailExists(singInDTO.Email))
             {
-                result.Success = false;
-                result.EmailSuccess = false;
-                result.Message = "Email is already registered.";
-                return result;
+                throw new ForbiddenException("Пользователь с таким email уже существует.");
             }
 
             var passwordHash = PasswordHelper.HashPassword(singInDTO.Password);
 
             var newUser = new DBUser
             {
+                Uuid = Guid.NewGuid(),
                 Email = singInDTO.Email,
                 PasswordHash = passwordHash,
                 LoginDateTime = DateTime.Now,
             };
 
-            AddUserAction(newUser);
-
-            //await userRepository.SaveChangesAsync();   ???
-
             var tokenId = Guid.NewGuid().ToString();
-            var token = _tokenService.GetToken(newUser.Id, tokenId);
+            var token = _tokenService.GetToken(newUser.Uuid, tokenId);
 
             var userSession = new DBUserSession
             {
-                Id = Guid.NewGuid(),
-                UserId = newUser.Id,
+                Uuid = Guid.NewGuid(),
+                User = newUser,
                 RefreshToken = token.RefreshToken,
                 JwtId = tokenId,
                 RefreshTokenExpiration = DateTime.Now.AddDays(_tokenConfiguration.RefreshTokenExpirationDays),
                 Redeemed = false
             };
 
-            AddUserSessionAction(userSession);
-
-            //await userRepository.SaveChangesAsync();   ???
-
-            result.Success = true;
-            result.EmailSuccess = true;
-            result.Message = "User registered successfully";
-            result.AccessToken = token.AccessToken;
-            result.RefreshToken = token.RefreshToken;
-
-            return result;
-        }
-        public LogInSuccess LogIn(LogInDTO logInDTO)
-        {
-            var result = new LogInSuccess();
-
-            var user = GetUserByCredentialAction(logInDTO.Email);
-
-            if (user != null)
+            try
             {
-                result.Success = false;
-                result.EmailSuccess = false;
-                result.PasswordSuccess = false;
-                result.Message = "User not found.";
-                return result;
+                _userRepository.Add(newUser);
+                _userRepository.Add(userSession);
+                await _userRepository.SaveChangesAsync();
+
+                return new AuthSuccessResponse
+                {
+                    AccessToken = token.AccessToken,
+                    RefreshToken = token.RefreshToken
+                };
+            }
+            catch (Exception ex)
+            {
+                // Можно логировать или выбросить другое исключение
+                throw new ForbiddenException("Ошибка при создании пользователя.", ex);
+            }
+        }
+        public async Task<AuthSuccessResponse> LogIn(LogInDTO logInDTO)
+        {
+            var user = _userRepository.GetUserByEmail(logInDTO.Email);
+            if (user == null)
+            {
+                throw new ForbiddenException("Пользователь с таким email не найден.");
             }
 
-            result.EmailSuccess = true;
-
-            if(!PasswordHelper.VerifyPassword(logInDTO.Password, user.PasswordHash))
+            if (!PasswordHelper.VerifyPassword(logInDTO.Password, user.PasswordHash))
             {
-                result.Success = false;
-                result.PasswordSuccess = false;
-                result.Message = "Incorrect password.";
-                return result;
+                throw new ForbiddenException("Неверный пароль.");
             }
 
             var tokenId = Guid.NewGuid().ToString();
-            var token = _tokenService.GetToken(user.Id, tokenId);
+            var token = _tokenService.GetToken(user.Uuid, tokenId);
 
             var userSession = new DBUserSession
             {
-                Id = Guid.NewGuid(),
-                UserId = user.Id,
+                Uuid = Guid.NewGuid(),
+                User = user,
                 RefreshToken = token.RefreshToken,
                 JwtId = tokenId,
                 RefreshTokenExpiration = DateTime.Now.AddDays(_tokenConfiguration.RefreshTokenExpirationDays),
                 Redeemed = false
             };
 
-            AddUserSessionAction(userSession);
+            try
+            {
+                _userRepository.Add(userSession);
+                await _userRepository.SaveChangesAsync();
 
-            result.Success = true;
-            result.UserId = user.Id;
-            result.PasswordSuccess = true;
-            result.Message = "Login successful.";
-            result.AccessToken = token.AccessToken;
-            result.RefreshToken = token.RefreshToken;
-            result.RefreshTokenExpiration = userSession.RefreshTokenExpiration;
-
-            return result;
+                return new AuthSuccessResponse
+                {
+                    AccessToken = token.AccessToken,
+                    RefreshToken = token.RefreshToken
+                };
+            }
+            catch (Exception ex)
+            {
+                throw new ForbiddenException("Ошибка при создании сессии пользователя.", ex);
+            }
         }
-        public LogInSuccess RefreshTokens(string accessToken, string refreshToken)
+        public async Task<AuthSuccessResponse> RefreshTokens(string accessToken, string refreshToken)
         {
-            var tokenHalder = new JwtSecurityTokenHandler();
-            var validationParametrs = _tokenService.GetValidationParameters();
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var validationParameters = _tokenService.GetValidationParameters();
 
-            var principal = tokenHalder.ValidateToken(accessToken, validationParametrs, out var securityToken);
+            var principal = tokenHandler.ValidateToken(accessToken, validationParameters, out var securityToken);
 
-            if (securityToken is not JwtSecurityToken jwtSecurityToken 
+            if (securityToken is not JwtSecurityToken jwtSecurityToken
                 || !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
+            {
                 throw new ForbiddenException("Invalid token");
+            }
 
-            var storedToken = GetSessionByRefreshTokenAction(refreshToken);
-
-            if(storedToken ==  null)
+            var storedToken = await _userRepository.GetSessionByRefreshToken(refreshToken);
+            if (storedToken == null)
                 throw new ForbiddenException("Invalid refresh token");
 
-            if(storedToken.Redeemed)
+            if (storedToken.Redeemed)
                 throw new ForbiddenException("Refresh token already used");
 
-            var jwtId = principal.Claims.FirstOrDefault(x => x.Type == JwtRegisteredClaimNames.Jti)?.ToString(); // спросить Андрея, если не понимаю как работает(Виорел)
-            var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var jwtId = principal.Claims.FirstOrDefault(x => x.Type == JwtRegisteredClaimNames.Jti)?.ToString();
+            var userUuid = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            if (jwtId == null || userIdClaim == null 
-                || storedToken.User.Id.ToString() != userIdClaim 
-                || "jti: " + storedToken.JwtId != jwtId 
+            if (jwtId == null || userUuid == null 
+                || !string.Equals(storedToken.User.Uuid.ToString(), userUuid, StringComparison.CurrentCultureIgnoreCase) 
+                || !string.Equals("jti: " + storedToken.JwtId, jwtId, StringComparison.CurrentCultureIgnoreCase) 
                 || DateTime.Now > storedToken.RefreshTokenExpiration)
+            {
                 throw new ForbiddenException("Invalid access token");
+            }
 
             var newJwtId = Guid.NewGuid().ToString();
-            var token = _tokenService.GetToken(storedToken.User.Id, newJwtId);
+            var token = _tokenService.GetToken(storedToken.User.Uuid, newJwtId);
 
             var newSession = new DBUserSession
             {
-                Id = Guid.NewGuid(),
-                UserId = storedToken.User.Id,
+                Uuid = Guid.NewGuid(),
+                UserId = storedToken.UserId,
                 RefreshToken = token.RefreshToken,
                 JwtId = newJwtId,
                 RefreshTokenExpiration = DateTime.Now.AddDays(_tokenConfiguration.RefreshTokenExpirationDays),
                 Redeemed = false
             };
 
-            AddUserSessionAction(newSession);
-
-            storedToken.Redeemed = true;
-            UpdateUserSessionAction(storedToken);
-
-            return new LogInSuccess
+            try
             {
-                Success = true,
-                UserId = storedToken.User.Id,
-                AccessToken = token.AccessToken,
-                RefreshToken = token.RefreshToken,
-                RefreshTokenExpiration = newSession.RefreshTokenExpiration,
-                Message = "Token refreshed successfully",
-                EmailSuccess = true,
-                PasswordSuccess = true
-            };
+                _userRepository.Add(newSession);
+                storedToken.Redeemed = true;
+                _userRepository.Update(storedToken);
+
+                await _userRepository.SaveChangesAsync();
+
+                return new AuthSuccessResponse
+                {
+                    AccessToken = token.AccessToken,
+                    RefreshToken = token.RefreshToken
+                };
+            }
+            catch (Exception ex)
+            {
+                throw new ForbiddenException("Ошибка при обновлении токенов.", ex);
+            }
         }
     }
 }

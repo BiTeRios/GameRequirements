@@ -10,7 +10,5 @@ namespace GameRequirements.Common.DTO.Auth
     {
         public string Email { get; set; } //Email
         public string Password { get; set; } //Password
-        public string LoginIp { get; set; } //ID user
-        public DateTime DateTime { get; set; } //Entry time
     }
 }

@@ -8,15 +8,12 @@ using System.Threading.Tasks;
 
 namespace GameRequirements.Domain.Entites.User
 {
-    public class DBUserSession
+    public class DBUserSession : BaseId
     {
-        [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public Guid Id { get; set; }
+        [ForeignKey("UserId")]
+        public long UserId { get; set; }  // внешний ключ на пользователя
 
-        [Required]
-        [Display(Name = "UserId")]
-        public Guid UserId { get; set; }  // внешний ключ на пользователя
+        public DBUser User { get; set; }
 
         [Required]
         [Display(Name = "RefreshToken")]
@@ -33,7 +30,5 @@ namespace GameRequirements.Domain.Entites.User
 
         [Required]
         public bool Redeemed { get; set; }  // использован ли токен
-
-        public DBUser User { get; set; }
     }
 }

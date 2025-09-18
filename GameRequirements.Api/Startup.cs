@@ -1,7 +1,12 @@
 ﻿using GameRequirements.Bll;
+using GameRequirements.Bll.BL;
 using GameRequirements.Bll.Helper.Token;
+using GameRequirements.Bll.Interface;
+using GameRequirements.Dal.Core;
+using GameRequirements.Domain.Context;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -34,10 +39,22 @@ namespace GameRequirements.Api
 
             // Конфигурация токена
             services.Configure<TokenConfiguration>(Configuration.GetSection("TokenConfiguration"));
-            
-            // Регистрируем BussinesLogic как singleton
-            services.AddSingleton<BussinesLogic>();
-            // ⛔ НЕ добавляю Identity/JWT/EF/AutoMapper/репозитории — в архиве нет готовых реализаций.
+
+            // DataContext (EF Core)
+            services.AddDbContext<DataContext>(options =>
+            {
+                options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection"));
+            });
+
+            // Репозитории
+            services.AddScoped<UserRepository>();
+
+            // Токены
+            services.AddScoped<TokenService>();
+
+            // Сервисы
+            services.AddScoped<ISessionBL, SessionBL>();
+            services.AddScoped<BussinesLogic>();
         }
 
         // 2) HTTP-пайплайн
