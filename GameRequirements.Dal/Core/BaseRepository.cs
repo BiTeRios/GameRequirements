@@ -10,8 +10,16 @@ using GameRequirements.Domain.Context;
 
 namespace GameRequirements.Dal.Core
 {
-    public class BaseRepository(DataContext dataContext)
+    public class BaseRepository
     {
+
+        protected readonly DataContext dataContext;
+
+        public BaseRepository(DataContext _dataContext)
+        {
+            dataContext = _dataContext;
+        }
+
         /// <summary>
         /// Adds an entity of type <typeparamref name="TEntity"/> to the data context.
         /// </summary>

@@ -9,9 +9,15 @@ using System.Threading.Tasks;
 
 namespace GameRequirements.Dal.Core
 {
-    public class UserRepository(DataContext dataContext) : BaseRepository(dataContext)
+    public class UserRepository : BaseRepository
     {
-        private readonly DataContext _dataContext = dataContext;
+        private readonly DataContext _dataContext;
+
+        public UserRepository(DataContext dataContext)
+        : base(dataContext) // передаем в BaseRepository
+        {
+            _dataContext = dataContext;
+        }
 
         /// <summary>
         /// Проверяет, существует ли пользователь с таким email.

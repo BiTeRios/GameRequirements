@@ -40,6 +40,7 @@ namespace GameRequirements.Api
             // Конфигурация токена
             services.Configure<TokenConfiguration>(Configuration.GetSection("TokenConfiguration"));
 
+
             // DataContext (EF Core)
             services.AddDbContext<DataContext>(options =>
             {
