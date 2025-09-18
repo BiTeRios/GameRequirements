@@ -1,0 +1,13 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "AZURE_SQL_CONNECTIONSTRING": "Server=tcp:gamerequirements.database.windows.net,1433;Initial Catalog=Game;Persist Security Info=False;User ID=BiTeRio;Password={ZxCvBlVl2020YeAr.};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+  }
+}
+
