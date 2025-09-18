@@ -378,3 +378,5 @@ FodyWeavers.xsd
 GameRequirements.Api/appsettings.*.local.json
 GameRequirements.Api/appsettings.Production.json
 /GameRequirements.Api/appsettings.json
+/GameRequirements.Api/appsetings.json
+/GameRequirements.Api/Certs
