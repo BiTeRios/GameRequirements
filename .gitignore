@@ -377,3 +377,5 @@ FodyWeavers.xsd
 # === Локальные секреты/конфиги бэкенда (не коммитим) ===
 GameRequirements.Api/appsettings.*.local.json
 GameRequirements.Api/appsettings.Production.json
+/GameRequirements.Api/appsettings.json
+/GameRequirements.Api/Certs

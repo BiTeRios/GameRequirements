@@ -55,7 +55,7 @@ export default defineConfig({
         open: true,
         proxy: {
             '/api': {
-                target: 'https://localhost:7240', // ASP.NET Core API
+                target: 'https://localhost:44362', 
                 changeOrigin: true,
                 secure: false
             }

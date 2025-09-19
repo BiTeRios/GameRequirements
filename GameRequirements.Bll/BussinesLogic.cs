@@ -1,5 +1,7 @@
 ﻿using GameRequirements.Bll.BL;
+using GameRequirements.Bll.Helper.Token;
 using GameRequirements.Bll.Interface;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,9 +12,16 @@ namespace GameRequirements.Bll
 {
     public class BussinesLogic
     {
-        public ISession GetSessiionBL()
+        private readonly ISessionBL _session;
+
+        public BussinesLogic(ISessionBL session)
         {
-            return new SessionBL();
+            _session = session;
+        }
+
+        public ISessionBL GetSessionBL()
+        {
+            return _session;
         }
     }
 }

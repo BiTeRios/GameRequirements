@@ -7,9 +7,10 @@ using System.Threading.Tasks;
 
 namespace GameRequirements.Bll.Interface
 {
-    public interface ISession
+    public interface ISessionBL
     {
-        SingInSuccess SingIn(SingInDTO singInDTO);
-        LogInSuccess LogIn(LogInDTO logIndto);
+        Task<AuthSuccessResponse> SignUp(SignUpDTO signUpDTO);
+        Task<AuthSuccessResponse> LogIn(LogInDTO logIndto);
+        Task<AuthSuccessResponse> RefreshTokens(string accessToken, string refreshToken);
     }
 }
