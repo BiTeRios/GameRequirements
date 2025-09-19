@@ -42,9 +42,15 @@ namespace GameRequirements.Api
 
 
             // DataContext (EF Core)
-            services.AddDbContext<DataContext>(options =>
+            services.AddDbContext<DataContext>(opt =>
             {
-                options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection"));
+                opt.UseSqlServer(
+                    Configuration.GetValue<string>("ConnectionStrings:DefaultConnection") ?? throw new InvalidOperationException(),
+                    b =>
+                    {
+                        b.MigrationsAssembly("GameRequirements.Api");
+                        b.CommandTimeout(60);
+                    });
             });
 
             // Репозитории

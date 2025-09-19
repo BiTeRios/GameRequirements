@@ -18,22 +18,12 @@ using System.Threading.Tasks;
 
 namespace GameRequirements.Bll.BL
 {
-    public class SessionBL : ISessionBL
+    public class SessionBL(IOptions<TokenConfiguration> tokenConfiguration, UserRepository userRepository, TokenService tokenService) : ISessionBL
     {
-        private readonly TokenService _tokenService;
-        private readonly TokenConfiguration _tokenConfiguration;
-        private readonly UserRepository _userRepository;
-
-        public SessionBL(IOptions<TokenConfiguration> tokenConfiguration, UserRepository userRepository, TokenService tokenService)
-        {
-            _tokenConfiguration = tokenConfiguration.Value;
-            _userRepository = userRepository;
-            _tokenService = tokenService;
-        }
         public async Task<AuthSuccessResponse> SingIn(SingInDTO singInDTO)
         {
 
-            if (_userRepository.EmailExists(singInDTO.Email))
+            if (userRepository.EmailExists(singInDTO.Email))
             {
                 throw new ForbiddenException("Пользователь с таким email уже существует.");
             }
@@ -49,7 +39,7 @@ namespace GameRequirements.Bll.BL
             };
 
             var tokenId = Guid.NewGuid().ToString();
-            var token = _tokenService.GetToken(newUser.Uuid, tokenId);
+            var token = tokenService.GetToken(newUser.Uuid, tokenId);
 
             var userSession = new DBUserSession
             {
@@ -57,31 +47,35 @@ namespace GameRequirements.Bll.BL
                 User = newUser,
                 RefreshToken = token.RefreshToken,
                 JwtId = tokenId,
-                RefreshTokenExpiration = DateTime.Now.AddDays(_tokenConfiguration.RefreshTokenExpirationDays),
+                RefreshTokenExpiration = DateTime.Now.AddDays(tokenConfiguration.Value.RefreshTokenExpirationDays),
                 Redeemed = false
             };
 
+            using var transaction = await userRepository.BeginTransactionAsync();
+
             try
             {
-                _userRepository.Add(newUser);
-                _userRepository.Add(userSession);
-                await _userRepository.SaveChangesAsync();
-
-                return new AuthSuccessResponse
-                {
-                    AccessToken = token.AccessToken,
-                    RefreshToken = token.RefreshToken
-                };
+                userRepository.Add(newUser);
+                userRepository.Add(userSession);
+                await transaction.CommitAsync();
             }
             catch (Exception ex)
             {
-                // Можно логировать или выбросить другое исключение
+                await transaction.RollbackAsync();
                 throw new ForbiddenException("Ошибка при создании пользователя.", ex);
             }
+
+            await userRepository.SaveChangesAsync();
+
+            return new AuthSuccessResponse
+            {
+                AccessToken = token.AccessToken,
+                RefreshToken = token.RefreshToken
+            };
         }
         public async Task<AuthSuccessResponse> LogIn(LogInDTO logInDTO)
         {
-            var user = _userRepository.GetUserByEmail(logInDTO.Email);
+            var user = userRepository.GetUserByEmail(logInDTO.Email);
             if (user == null)
             {
                 throw new ForbiddenException("Пользователь с таким email не найден.");
@@ -93,7 +87,7 @@ namespace GameRequirements.Bll.BL
             }
 
             var tokenId = Guid.NewGuid().ToString();
-            var token = _tokenService.GetToken(user.Uuid, tokenId);
+            var token = tokenService.GetToken(user.Uuid, tokenId);
 
             var userSession = new DBUserSession
             {
@@ -101,30 +95,32 @@ namespace GameRequirements.Bll.BL
                 User = user,
                 RefreshToken = token.RefreshToken,
                 JwtId = tokenId,
-                RefreshTokenExpiration = DateTime.Now.AddDays(_tokenConfiguration.RefreshTokenExpirationDays),
+                RefreshTokenExpiration = DateTime.Now.AddDays(tokenConfiguration.Value.RefreshTokenExpirationDays),
                 Redeemed = false
             };
 
             try
             {
-                _userRepository.Add(userSession);
-                await _userRepository.SaveChangesAsync();
-
-                return new AuthSuccessResponse
-                {
-                    AccessToken = token.AccessToken,
-                    RefreshToken = token.RefreshToken
-                };
+                userRepository.Add(userSession);
+                
             }
             catch (Exception ex)
             {
                 throw new ForbiddenException("Ошибка при создании сессии пользователя.", ex);
             }
+
+            await userRepository.SaveChangesAsync();
+
+            return new AuthSuccessResponse
+            {
+                AccessToken = token.AccessToken,
+                RefreshToken = token.RefreshToken
+            };
         }
         public async Task<AuthSuccessResponse> RefreshTokens(string accessToken, string refreshToken)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            var validationParameters = _tokenService.GetValidationParameters();
+            var validationParameters = tokenService.GetValidationParameters();
 
             var principal = tokenHandler.ValidateToken(accessToken, validationParameters, out var securityToken);
 
@@ -134,7 +130,7 @@ namespace GameRequirements.Bll.BL
                 throw new ForbiddenException("Invalid token");
             }
 
-            var storedToken = await _userRepository.GetSessionByRefreshToken(refreshToken);
+            var storedToken = await userRepository.GetSessionByRefreshToken(refreshToken);
             if (storedToken == null)
                 throw new ForbiddenException("Invalid refresh token");
 
@@ -153,7 +149,7 @@ namespace GameRequirements.Bll.BL
             }
 
             var newJwtId = Guid.NewGuid().ToString();
-            var token = _tokenService.GetToken(storedToken.User.Uuid, newJwtId);
+            var token = tokenService.GetToken(storedToken.User.Uuid, newJwtId);
 
             var newSession = new DBUserSession
             {
@@ -161,28 +157,28 @@ namespace GameRequirements.Bll.BL
                 UserId = storedToken.UserId,
                 RefreshToken = token.RefreshToken,
                 JwtId = newJwtId,
-                RefreshTokenExpiration = DateTime.Now.AddDays(_tokenConfiguration.RefreshTokenExpirationDays),
+                RefreshTokenExpiration = DateTime.Now.AddDays(tokenConfiguration.Value.RefreshTokenExpirationDays),
                 Redeemed = false
             };
 
             try
             {
-                _userRepository.Add(newSession);
+                userRepository.Add(newSession);
                 storedToken.Redeemed = true;
-                _userRepository.Update(storedToken);
-
-                await _userRepository.SaveChangesAsync();
-
-                return new AuthSuccessResponse
-                {
-                    AccessToken = token.AccessToken,
-                    RefreshToken = token.RefreshToken
-                };
+                userRepository.Update(storedToken);
             }
             catch (Exception ex)
             {
                 throw new ForbiddenException("Ошибка при обновлении токенов.", ex);
             }
+
+            await userRepository.SaveChangesAsync();
+
+            return new AuthSuccessResponse
+            {
+                AccessToken = token.AccessToken,
+                RefreshToken = token.RefreshToken
+            };
         }
     }
 }
