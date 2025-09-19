@@ -1,8 +1,17 @@
-﻿namespace GameRequirements.Common.Exceptions
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace GameRequirements.Common.Exceptions
 {
-    public sealed class ForbiddenAppException : AppException
+    public class ForbiddenException : Exception 
     {
-        public ForbiddenAppException(string message, string? errorCode = null)
-            : base(message, 403, errorCode ?? "forbidden") { }
+        public ForbiddenException() { }
+
+        public ForbiddenException(string message) : base(message) { }
+
+        public ForbiddenException(string message, Exception inner) : base(message, inner) { }
     }
 }

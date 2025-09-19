@@ -9,7 +9,7 @@ namespace GameRequirements.Bll.Interface
 {
     public interface ISessionBL
     {
-        Task<AuthSuccessResponse> SignUp(SignUpDTO signUpDTO);
+        Task<AuthSuccessResponse> SingIn(SingInDTO singInDTO);
         Task<AuthSuccessResponse> LogIn(LogInDTO logIndto);
         Task<AuthSuccessResponse> RefreshTokens(string accessToken, string refreshToken);
     }

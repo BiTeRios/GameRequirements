@@ -6,14 +6,10 @@ using GameRequirements.Dal.Core;
 using GameRequirements.Domain.Context;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.AspNetCore.Mvc;
-using System.Linq;
-using GameRequirements.Api.Middleware;
 
 namespace GameRequirements.Api
 {
@@ -22,53 +18,39 @@ namespace GameRequirements.Api
         public Startup(IConfiguration configuration) => Configuration = configuration;
         public IConfiguration Configuration { get; }
 
+        // 1) Регистрация сервисов
         public void AddServices(IServiceCollection services)
         {
-            //Controllers
+            // Только API-контроллеры — это у тебя есть.
             services.AddControllers();
-            
-            services.Configure<ApiBehaviorOptions>(opt =>
-            {
-                opt.InvalidModelStateResponseFactory = context =>
-                {
-                    var errors = context.ModelState
-                        .Where(kvp => kvp.Value?.Errors.Count > 0)
-                        .ToDictionary(
-                            kvp => kvp.Key,
-                            kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
-                        );
 
-                    var body = new
-                    {
-                        message = "Validation failed",
-                        errorCode = "validation_error",
-                        errors
-                    };
-
-                    return new BadRequestObjectResult(body);
-                };
-            });
-            //Swagger 
+            // Swagger (стандартный)
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen();
 
-            // CORS (для разработки фронта на Vite)
-            services.AddCors(opt =>
+            // CORS для дев-режима. Если будешь использовать прокси — он не обязателен, но и не мешает.
+            services.AddCors(p =>
             {
-                opt.AddPolicy("ui-dev", p =>
-                    p.WithOrigins("http://localhost:5173") // Vite dev server
-                     .AllowAnyHeader()
-                     .AllowAnyMethod()
-                     .AllowCredentials());
+                p.AddPolicy("DevUi", b => b
+                    .AllowAnyOrigin()
+                    .AllowAnyHeader()
+                    .AllowAnyMethod());
             });
 
             // Конфигурация токена
             services.Configure<TokenConfiguration>(Configuration.GetSection("TokenConfiguration"));
 
+
             // DataContext (EF Core)
-            services.AddDbContext<DataContext>(options =>
+            services.AddDbContext<DataContext>(opt =>
             {
-                options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection"));
+                opt.UseSqlServer(
+                    Configuration.GetValue<string>("ConnectionStrings:DefaultConnection") ?? throw new InvalidOperationException(),
+                    b =>
+                    {
+                        b.MigrationsAssembly("GameRequirements.Api");
+                        b.CommandTimeout(60);
+                    });
             });
 
             // Репозитории
@@ -85,8 +67,6 @@ namespace GameRequirements.Api
         // 2) HTTP-пайплайн
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
-            app.UseMiddleware<ExceptionHandlingMiddleware>();
-
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
@@ -101,20 +81,20 @@ namespace GameRequirements.Api
             app.UseRouting();
 
             // В деве — ок. Если настроишь Vite-прокси, CORS можно выключить.
-            app.UseCors("ui-dev");
+            app.UseCors("DevUi");
 
-            app.UseAuthentication();
             app.UseAuthorization();
 
-            app.UseDefaultFiles();
-            app.UseStaticFiles();
+            // === Хостинг SPA сборки (путь A: билд фронта лежит в wwwroot) ===
+            app.UseDefaultFiles(); // ищет index.html в wwwroot
+            app.UseStaticFiles();  // раздаёт js/css/img из wwwroot
 
             app.UseEndpoints(endpoints =>
             {
                 // API
                 endpoints.MapControllers();
 
-                // SPA fallback 
+                // SPA fallback — любые НЕ-API маршруты отдаём index.html
                 endpoints.MapFallbackToFile("index.html");
             });
         }

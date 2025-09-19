@@ -1,5 +1,4 @@
 ﻿using GameRequirements.Bll;
-using GameRequirements.Bll.BL;
 using GameRequirements.Bll.Interface;
 using GameRequirements.Common.DTO.Auth;
 using GameRequirements.Common.DTO.Requests;
@@ -21,11 +20,11 @@ namespace GameRequirements.Api.Controllers
             _sessionBL = sessionBL;
         }
 
-        [HttpPost("register")]
-        public async Task<IActionResult> SignUp([FromBody] SignUpDTO signUpDTO)
+        [HttpPost("signin")]
+        public async Task<IActionResult> SignIn([FromBody] SingInDTO singInDTO)
         {
-            var result = await _sessionBL.SignUp(signUpDTO);
-            return Ok(result);
+            var result = await _sessionBL.SingIn(singInDTO);
+            return NoContent();
         }
 
         [HttpPost("login")]

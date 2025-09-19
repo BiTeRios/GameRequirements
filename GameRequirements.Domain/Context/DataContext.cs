@@ -10,10 +10,7 @@ namespace GameRequirements.Domain.Context
 {
     public class DataContext : DbContext
     {
-        public DataContext(DbContextOptions<DataContext> options)
-        : base(options)
-        {
-        }
+        public DataContext(DbContextOptions<DataContext> options) : base(options) { }
 
         public DbSet<DBUser> Users { get; set; }
         public DbSet<DBUserSession> Sessions { get; set; }
