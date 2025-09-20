@@ -1,74 +1,168 @@
-import { useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
-import { 
-  User, 
-  Settings, 
-  Monitor, 
-  Gamepad2, 
-  BarChart3, 
-  Trophy, 
+import {
+  Settings,
+  Monitor,
+  Gamepad2,
+  BarChart3,
+  Trophy,
   Calendar,
   Edit,
   Save,
-  X
+  X,
+  Plus,
+  Trash2,
 } from "lucide-react";
+
+// Диалог и селекты из твоего UI-кита (shadcn/ui-стек)
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 
 interface ProfilePageProps {
   onNavigate?: (page: string) => void;
 }
 
+type Config = {
+  id: string;
+  name: string;
+  cpu: string;
+  gpu: string;
+  ram: string;
+  createdAt: string;
+  isEditing?: boolean;
+};
+
+const LS_KEY = "gr:configs:v1";
+
+// Наборы опций (можешь подлить свои списки — структура совместима)
+const CPU_OPTIONS = [
+  "Intel Core i5-10400F",
+  "Intel Core i5-12400",
+  "Intel Core i7-12700",
+  "AMD Ryzen 5 5600",
+  "AMD Ryzen 7 5800X",
+  "AMD Ryzen 5 7600",
+];
+const GPU_OPTIONS = [
+  "NVIDIA GeForce GTX 1660 Super",
+  "NVIDIA GeForce RTX 3060",
+  "NVIDIA GeForce RTX 3070",
+  "AMD Radeon RX 6600",
+  "AMD Radeon RX 6700 XT",
+  "AMD Radeon RX 7800 XT",
+];
+const RAM_OPTIONS = ["8GB", "16GB", "32GB", "64GB"];
+
+function loadConfigs(): Config[] {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    return raw ? (JSON.parse(raw) as Config[]) : [];
+  } catch {
+    return [];
+  }
+}
+function saveConfigs(list: Config[]) {
+  localStorage.setItem(LS_KEY, JSON.stringify(list));
+}
+
 export function ProfilePage({ onNavigate }: ProfilePageProps) {
-  const [isEditing, setIsEditing] = useState(false);
+  const nav = useNavigate();
+
+  // Шапка (как у тебя)
+  const [isEditingHeader, setIsEditingHeader] = useState(false);
   const [profile, setProfile] = useState({
     username: "CyberGamer2077",
     email: "cyber.gamer@example.com",
-    firstName: "Алексей",
-    lastName: "Киберпанк",
-    bio: "Заядлый геймер, коллекционирую RTX карты и люблю киберпанк эстетику",
     joinDate: "2023-01-15",
     gamesChecked: 127,
     configurationsCompared: 34,
-    favoriteGames: ["Cyberpunk 2077", "Valorant", "Fortnite"],
-    currentConfig: {
-      cpu: "AMD Ryzen 7 5800X",
-      gpu: "NVIDIA RTX 3070",
-      ram: "32GB DDR4"
-    }
   });
+  const handleSaveHeader = () => setIsEditingHeader(false);
 
-  const handleSave = () => {
-    setIsEditing(false);
-    // Здесь будет логика сохранения профиля
+  // Мульти-конфиги
+  const [configs, setConfigs] = useState<Config[]>(() => loadConfigs());
+  useEffect(() => saveConfigs(configs), [configs]);
+
+  const startEdit = (id: string) =>
+    setConfigs((p) => p.map((c) => (c.id === id ? { ...c, isEditing: true } : c)));
+  const cancelEdit = (id: string) =>
+    setConfigs((p) => p.map((c) => (c.id === id ? { ...c, isEditing: false } : c)));
+  const applyEdit = (id: string, patch: Partial<Config>) =>
+    setConfigs((p) => p.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  const saveEdit = (id: string) =>
+    setConfigs((p) => p.map((c) => (c.id === id ? { ...c, isEditing: false } : c)));
+  const deleteConfig = (id: string) => setConfigs((p) => p.filter((c) => c.id !== id));
+
+  const goToGames = (cfg: Config) => {
+    const q = new URLSearchParams({
+      cpu: cfg.cpu,
+      gpu: cfg.gpu,
+      ramGb: cfg.ram.replace(/[^0-9]/g, "") || "16",
+    }).toString();
+    nav(`/games?${q}`);
+  };
+
+  // ---------- Диалог создания конфигурации ----------
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newCpu, setNewCpu] = useState<string | undefined>();
+  const [newGpu, setNewGpu] = useState<string | undefined>();
+  const [newRam, setNewRam] = useState<string | undefined>("16GB");
+
+  const canCreate = useMemo(
+    () => newName.trim() && !!newCpu && !!newGpu && !!newRam,
+    [newName, newCpu, newGpu, newRam]
+  );
+
+  const createConfig = () => {
+    if (!canCreate) return;
+    const id = (crypto as any)?.randomUUID?.() ?? Math.random().toString(36).slice(2);
+    const cfg: Config = {
+      id,
+      name: newName.trim(),
+      cpu: newCpu!,
+      gpu: newGpu!,
+      ram: newRam!,
+      createdAt: new Date().toISOString(),
+    };
+    setConfigs((p) => [cfg, ...p]);
+    // очистим форму и закроем диалог
+    setNewName("");
+    setNewCpu(undefined);
+    setNewGpu(undefined);
+    setNewRam("16GB");
+    setIsAddOpen(false);
   };
 
   return (
     <div className="space-y-8">
-      {/* Profile Header */}
+      {/* ---------- HEADER ---------- */}
       <Card className="glass-morphism border-primary/20">
         <CardContent className="p-8">
           <div className="flex flex-col md:flex-row items-start gap-6">
-            <div className="relative">
-              <Avatar className="h-24 w-24 border-2 border-primary/20">
-                <AvatarImage src="/api/placeholder/96/96" />
-                <AvatarFallback className="bg-gradient-to-br from-primary/20 to-accent/20 text-2xl font-bold">
-                  АК
-                </AvatarFallback>
-              </Avatar>
-              <Button
-                size="sm"
-                className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full bg-primary hover:bg-primary/80 neon-glow"
-              >
-                <Edit className="h-3 w-3" />
-              </Button>
-            </div>
-            
             <div className="flex-1 space-y-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -77,11 +171,11 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                   </h1>
                   <p className="text-muted-foreground">{profile.email}</p>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
-                  {!isEditing ? (
+                  {!isEditingHeader ? (
                     <Button
-                      onClick={() => setIsEditing(true)}
+                      onClick={() => setIsEditingHeader(true)}
                       variant="outline"
                       className="border-primary/30 hover:border-primary hover:bg-primary/10"
                     >
@@ -90,15 +184,12 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                     </Button>
                   ) : (
                     <div className="flex gap-2">
-                      <Button
-                        onClick={handleSave}
-                        className="bg-primary hover:bg-primary/80 neon-glow"
-                      >
+                      <Button onClick={handleSaveHeader} className="bg-primary hover:bg-primary/80 neon-glow">
                         <Save className="h-4 w-4 mr-2" />
                         Сохранить
                       </Button>
                       <Button
-                        onClick={() => setIsEditing(false)}
+                        onClick={() => setIsEditingHeader(false)}
                         variant="outline"
                         className="border-destructive/30 hover:border-destructive hover:bg-destructive/10"
                       >
@@ -108,14 +199,14 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                   )}
                 </div>
               </div>
-              
+
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4" />
-                  Регистрация: {new Date(profile.joinDate).toLocaleDateString('ru-RU')}
+                  Регистрация: {new Date(profile.joinDate).toLocaleDateString("ru-RU")}
                 </div>
               </div>
-              
+
               {/* Stats */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/10 border border-primary/20">
@@ -145,13 +236,9 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
         </CardContent>
       </Card>
 
-      {/* Profile Tabs */}
-      <Tabs defaultValue="personal" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 glass-morphism">
-          <TabsTrigger value="personal" className="flex items-center gap-2">
-            <User className="h-4 w-4" />
-            Личная информация
-          </TabsTrigger>
+      {/* ---------- TABS ---------- */}
+      <Tabs defaultValue="gaming" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 glass-morphism">
           <TabsTrigger value="gaming" className="flex items-center gap-2">
             <Monitor className="h-4 w-4" />
             Игровая конфигурация
@@ -162,114 +249,205 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="personal" className="space-y-6">
-          <Card className="glass-morphism border-primary/10">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Персональная информация
+        {/* ---------- GAMING ---------- */}
+        <TabsContent value="gaming" className="space-y-6">
+          {/* Кнопка открытия диалога */}
+          <Card className="glass-morphism border-accent/10">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center justify-between">
+                <span>Мои конфигурации</span>
+                <Button onClick={() => setIsAddOpen(true)} className="bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80 neon-glow">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Добавить конфигурацию
+                </Button>
               </CardTitle>
+              <CardDescription>Сохраняйте несколько ПК и быстро переходите к рекомендациям игр</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">Имя</Label>
-                  <Input
-                    id="firstName"
-                    value={profile.firstName}
-                    disabled={!isEditing}
-                    onChange={(e) => setProfile(prev => ({ ...prev, firstName: e.target.value }))}
-                    className="bg-input-background"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Фамилия</Label>
-                  <Input
-                    id="lastName"
-                    value={profile.lastName}
-                    disabled={!isEditing}
-                    onChange={(e) => setProfile(prev => ({ ...prev, lastName: e.target.value }))}
-                    className="bg-input-background"
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="bio">О себе</Label>
-                <textarea
-                  id="bio"
-                  value={profile.bio}
-                  disabled={!isEditing}
-                  onChange={(e) => setProfile(prev => ({ ...prev, bio: e.target.value }))}
-                  className="w-full p-3 rounded-md bg-input-background border border-border focus:border-primary transition-colors resize-none"
-                  rows={3}
-                />
-              </div>
-              
-              <div>
-                <Label>Любимые игры</Label>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {profile.favoriteGames.map((game, index) => (
-                    <Badge key={index} variant="secondary" className="bg-primary/10 text-primary border-primary/20">
-                      {game}
-                    </Badge>
+            <CardContent>
+              {configs.length === 0 ? (
+                <div className="text-muted-foreground">Пока нет сохранённых конфигураций.</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {configs.map((cfg) => (
+                    <Card key={cfg.id} className="glass-morphism border-primary/10">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center justify-between gap-3">
+                          <span className="truncate">{cfg.name || "Без названия"}</span>
+                          <div className="flex gap-2">
+                            {!cfg.isEditing ? (
+                              <>
+                                <Button variant="outline" size="sm" className="border-primary/30 hover:border-primary hover:bg-primary/10" onClick={() => startEdit(cfg.id)}>
+                                  <Edit className="h-4 w-4 mr-1" /> Редактировать
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={() => goToGames(cfg)}>
+                                  К играм
+                                </Button>
+                                <Button variant="outline" size="sm" className="border-destructive/30 hover:border-destructive hover:bg-destructive/10" onClick={() => deleteConfig(cfg.id)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button size="sm" className="bg-primary hover:bg-primary/80" onClick={() => saveEdit(cfg.id)}>
+                                  <Save className="h-4 w-4 mr-1" /> Сохранить
+                                </Button>
+                                <Button variant="outline" size="sm" className="border-destructive/30 hover:border-destructive hover:bg-destructive/10" onClick={() => cancelEdit(cfg.id)}>
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </CardTitle>
+                        <CardDescription>Создано: {new Date(cfg.createdAt).toLocaleString("ru-RU")}</CardDescription>
+                      </CardHeader>
+
+                      <CardContent className="space-y-3">
+                        {!cfg.isEditing ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-primary/5 border border-primary/20">
+                              <div>
+                                <div className="font-semibold text-foreground">Процессор</div>
+                                <div className="text-muted-foreground">{cfg.cpu}</div>
+                              </div>
+                              <Badge className="bg-primary/10 text-primary border-primary/20">OK</Badge>
+                            </div>
+
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-accent/5 border border-accent/20">
+                              <div>
+                                <div className="font-semibold text-foreground">Видеокарта</div>
+                                <div className="text-muted-foreground">{cfg.gpu}</div>
+                              </div>
+                              <Badge className="bg-accent/10 text-accent border-accent/20">OK</Badge>
+                            </div>
+
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-[#00ffff]/5 border border-[#00ffff]/20">
+                              <div>
+                                <div className="font-semibold text-foreground">Оперативная память</div>
+                                <div className="text-muted-foreground">{cfg.ram}</div>
+                              </div>
+                              <Badge className="bg-[#00ffff]/10 text-[#00ffff] border-[#00ffff]/20">OK</Badge>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 gap-3">
+                            <div className="space-y-1">
+                              <Label>Название</Label>
+                              <Input value={cfg.name} onChange={(e) => applyEdit(cfg.id, { name: e.target.value })} />
+                            </div>
+                            <div className="space-y-1">
+                              <Label>CPU</Label>
+                              <Input value={cfg.cpu} onChange={(e) => applyEdit(cfg.id, { cpu: e.target.value })} />
+                            </div>
+                            <div className="space-y-1">
+                              <Label>GPU</Label>
+                              <Input value={cfg.gpu} onChange={(e) => applyEdit(cfg.id, { gpu: e.target.value })} />
+                            </div>
+                            <div className="space-y-1">
+                              <Label>RAM</Label>
+                              <Input value={cfg.ram} onChange={(e) => applyEdit(cfg.id, { ram: e.target.value })} />
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
-        </TabsContent>
 
-        <TabsContent value="gaming" className="space-y-6">
-          <Card className="glass-morphism border-accent/10">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Monitor className="h-5 w-5" />
-                Текущая конфигурация
-              </CardTitle>
-              <CardDescription>
-                Ваша основная игровая конфигурация для тестирования совместимости
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 rounded-lg bg-primary/5 border border-primary/20">
-                  <div>
-                    <div className="font-semibold text-foreground">Процессор</div>
-                    <div className="text-muted-foreground">{profile.currentConfig.cpu}</div>
-                  </div>
-                  <Badge className="bg-primary/10 text-primary border-primary/20">Отлично</Badge>
+          {/* Диалог создания */}
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+            <DialogContent className="sm:max-w-[560px]">
+              <DialogHeader>
+                <DialogTitle>Новая конфигурация</DialogTitle>
+                <DialogDescription>Задайте имя и выберите комплектующие</DialogDescription>
+              </DialogHeader>
+
+              <div className="grid gap-4 py-2">
+                <div className="space-y-1">
+                  <Label htmlFor="new-name">Название</Label>
+                  <Input
+                    id="new-name"
+                    placeholder="Дом / Офис / Игровой"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                  />
                 </div>
-                
-                <div className="flex items-center justify-between p-4 rounded-lg bg-accent/5 border border-accent/20">
-                  <div>
-                    <div className="font-semibold text-foreground">Видеокарта</div>
-                    <div className="text-muted-foreground">{profile.currentConfig.gpu}</div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label>Процессор (CPU)</Label>
+                    <Select value={newCpu} onValueChange={setNewCpu}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Выберите CPU" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectLabel>Популярные CPU</SelectLabel>
+                          {CPU_OPTIONS.map((c) => (
+                            <SelectItem key={c} value={c}>
+                              {c}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <Badge className="bg-accent/10 text-accent border-accent/20">Отлично</Badge>
+
+                  <div className="space-y-1">
+                    <Label>Видеокарта (GPU)</Label>
+                    <Select value={newGpu} onValueChange={setNewGpu}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Выберите GPU" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectLabel>Популярные GPU</SelectLabel>
+                          {GPU_OPTIONS.map((g) => (
+                            <SelectItem key={g} value={g}>
+                              {g}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                
-                <div className="flex items-center justify-between p-4 rounded-lg bg-[#00ffff]/5 border border-[#00ffff]/20">
-                  <div>
-                    <div className="font-semibold text-foreground">Оперативная память</div>
-                    <div className="text-muted-foreground">{profile.currentConfig.ram}</div>
-                  </div>
-                  <Badge className="bg-[#00ffff]/10 text-[#00ffff] border-[#00ffff]/20">Отлично</Badge>
+
+                <div className="space-y-1">
+                  <Label>Оперативная память (RAM)</Label>
+                  <Select value={newRam} onValueChange={setNewRam}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Выберите RAM" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectLabel>Объём</SelectLabel>
+                        {RAM_OPTIONS.map((r) => (
+                          <SelectItem key={r} value={r}>
+                            {r}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-              
-              <Separator />
-              
-              <Button
-                onClick={() => onNavigate?.("home")}
-                className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/80 hover:to-accent/80 neon-glow"
-              >
-                Обновить конфигурацию
-              </Button>
-            </CardContent>
-          </Card>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAddOpen(false)}>
+                  Отмена
+                </Button>
+                <Button disabled={!canCreate} onClick={createConfig} className="bg-primary hover:bg-primary/80">
+                  Сохранить
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
+        {/* ---------- SETTINGS ---------- */}
         <TabsContent value="settings" className="space-y-6">
           <Card className="glass-morphism border-muted/20">
             <CardHeader>
@@ -285,30 +463,14 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                     <div className="font-semibold">Email уведомления</div>
                     <div className="text-sm text-muted-foreground">Получать уведомления о новых играх</div>
                   </div>
-                  <Button variant="outline" size="sm">
-                    Включено
-                  </Button>
+                  <Button variant="outline" size="sm">Включено</Button>
                 </div>
-                
+
                 <Separator />
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-semibold">Публичный профиль</div>
-                    <div className="text-sm text-muted-foreground">Показывать профиль другим пользователям</div>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    Включено
-                  </Button>
-                </div>
-                
-                <Separator />
-                
+
                 <div className="space-y-4">
                   <div className="font-semibold text-destructive">Опасная зона</div>
-                  <Button variant="destructive" className="w-full">
-                    Удалить аккаунт
-                  </Button>
+                  <Button variant="destructive" className="w-full">Удалить аккаунт</Button>
                 </div>
               </div>
             </CardContent>

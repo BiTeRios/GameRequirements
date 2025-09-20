@@ -8,11 +8,10 @@ import { HomePage } from "./components/HomePage";
 import { ResultsPage } from "./components/ResultsPage";
 import { ComparePage } from "./components/ComparePage";
 import { AboutPage } from "./components/AboutPage";
-import { UIKitPage } from "./components/UIKitPage";
 import { LoginPage } from "./components/LoginPage";
 import { RegisterPage } from "./components/RegisterPage";
 import { ForgotPasswordPage } from "./components/ForgotPasswordPage";
-import { ProfilePage } from "./components/ProfilePage";
+import {ProfilePage} from "./components/ProfilePage";
 import { GamesPage } from "./components/GamesPage";
 import { TermsPage } from "./components/TermsPage";
 import { PrivacyPage } from "./components/PrivacyPage";
@@ -41,7 +40,6 @@ export default function App() {
                 <Route path="/games" element={<GamesPage />} />
                 <Route path="/compare" element={<ComparePage />} />
                 <Route path="/about" element={<AboutPage />} />
-                <Route path="/uikit" element={<UIKitPage />} />
                 <Route path="/terms" element={<TermsPage />} />
                 <Route path="/privacy" element={<PrivacyPage />} />
 

@@ -24,7 +24,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 // На бэке у тебя методы: SignUp → маршрут обычно /api/auth/signin, LogIn → /api/auth/login, Refresh → /api/auth/refresh
 const API = {
     login: "/api/auth/login",
-    register: "/api/auth/register",
+    register: "/api/auth/signin",
     refresh: "/api/auth/refresh",
 };
 

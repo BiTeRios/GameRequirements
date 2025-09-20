@@ -34,9 +34,6 @@ export function Header() {
                         <NavLink to="/about" className={linkCls}>
                             О проекте
                         </NavLink>
-                        <NavLink to="/uikit" className={linkCls}>
-                            UI Kit
-                        </NavLink>
                     </nav>
                 </div>
 
