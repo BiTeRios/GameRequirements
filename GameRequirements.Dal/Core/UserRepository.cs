@@ -33,8 +33,10 @@ namespace GameRequirements.Dal.Core
         public DBUser? GetUserByEmail(string email)
         {
             return _dataContext.Users
-                .FirstOrDefault(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(u => u.Email.ToLower() == email.ToLower());
         }
+
+
 
         /// <summary>
         /// Получает сессию по refresh token.
