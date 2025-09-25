@@ -4,12 +4,17 @@ using GameRequirements.Bll.Helper.Token;
 using GameRequirements.Bll.Interface;
 using GameRequirements.Dal.Core;
 using GameRequirements.Domain.Context;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+using AutoMapper;
+using GameRequirements.Bll.Mapping;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 namespace GameRequirements.Api
 {
@@ -62,8 +67,30 @@ namespace GameRequirements.Api
             // Сервисы
             services.AddScoped<ISessionBL, SessionBL>();
             services.AddScoped<BussinesLogic>();
-        }
+            services.AddAutoMapper(typeof(Profiles).Assembly);
 
+            var tokenCfg = new TokenConfiguration();
+        Configuration.GetSection("TokenConfiguration").Bind(tokenCfg);
+
+        services
+            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(o =>
+        {
+            o.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(tokenCfg.SecretKey)),
+                ValidateIssuer = true,
+                ValidIssuer = tokenCfg.Issuer,
+                ValidateAudience = true,
+                ValidAudience = tokenCfg.Audience,
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.Zero,
+            };
+        });
+
+    services.AddAuthorization(); // формально опционально, но ок явно указать
+}
         // 2) HTTP-пайплайн
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
@@ -92,11 +119,13 @@ namespace GameRequirements.Api
             // В деве — ок. Если настроишь Vite-прокси, CORS можно выключить.
             app.UseCors("DevUi");
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
             // === Хостинг SPA сборки (путь A: билд фронта лежит в wwwroot) ===
             app.UseDefaultFiles(); // ищет index.html в wwwroot
             app.UseStaticFiles();  // раздаёт js/css/img из wwwroot
+            app.UseMiddleware<ErrorHandlingMiddleware>();
 
             app.UseEndpoints(endpoints =>
             {

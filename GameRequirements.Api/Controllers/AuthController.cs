@@ -24,7 +24,7 @@ namespace GameRequirements.Api.Controllers
         public async Task<IActionResult> SignIn([FromBody] SingInDTO singInDTO)
         {
             var result = await _sessionBL.SingIn(singInDTO);
-            return NoContent();
+            return Ok(new { ok = true, message = "Registered" });
         }
 
         [HttpPost("login")]

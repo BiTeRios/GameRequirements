@@ -48,5 +48,10 @@ namespace GameRequirements.Dal.Core
 
             return session;
         }
+        public async Task<DBUser?> GetByUuidAsync(Guid uuid)
+        {
+            return await _dataContext.Users.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Uuid == uuid);
+        }
     }
 }

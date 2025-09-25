@@ -1,87 +1,42 @@
-﻿using System.Text.Json;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
-using GameRequirements.Common.Exceptions;
-using System.Linq;
+﻿using System.ComponentModel.DataAnnotations;
+using System.Net;
+using System.Text.Json;
+using GameRequirements.Common.Exceptions; // твои Forbidden/NotFound и т.п.
 
-namespace GameRequirements.Api.Middleware
+public class ErrorHandlingMiddleware
 {
-    public sealed class ExceptionHandlingMiddleware
+    private readonly RequestDelegate _next;
+    public ErrorHandlingMiddleware(RequestDelegate next) => _next = next;
+
+    public async Task Invoke(HttpContext ctx)
     {
-        private readonly RequestDelegate _next;
-        private readonly ILogger<ExceptionHandlingMiddleware> _logger;
-
-        public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
+        try
         {
-            _next = next;
-            _logger = logger;
+            await _next(ctx);
         }
-
-        public async Task Invoke(HttpContext ctx)
+        catch (ForbiddenException ex)
         {
-            try
-            {
-                await _next(ctx);
-            }
-            catch (Exception ex)
-            {
-                await HandleAsync(ctx, ex, _logger);
-            }
+            await Write(ctx, HttpStatusCode.Conflict, ex.Message); // 409 при конфликте email
         }
-
-        private static async Task HandleAsync(HttpContext ctx, Exception ex, ILogger logger)
+        catch (ValidationException ex)
         {
-            var traceId = ctx.TraceIdentifier;
-
-            int status;
-            string message;
-            string? errorCode = null;
-            object? details = null;
-
-            switch (ex)
-            {
-                case AppException appEx:
-                    status = appEx.StatusCode;
-                    message = appEx.Message;
-                    errorCode = appEx.ErrorCode;
-                    // логируем как Warning, т.к. это ожидаемая «бизнес» ошибка
-                    logger.LogWarning(ex, "AppException {ErrorCode} {Message} TraceId={TraceId}", errorCode, message, traceId);
-                    break;
-
-                case UnauthorizedAccessException:
-                    status = StatusCodes.Status401Unauthorized;
-                    message = "Unauthorized";
-                    errorCode = "unauthorized";
-                    logger.LogWarning(ex, "Unauthorized TraceId={TraceId}", traceId);
-                    break;
-
-                default:
-                    status = StatusCodes.Status500InternalServerError;
-                    message = "Internal server error";
-                    errorCode = "server_error";
-                    // логируем как Error c трейсом
-                    logger.LogError(ex, "Unhandled exception TraceId={TraceId}", traceId);
-                    break;
-            }
-
-            // Единый JSON формат ответа
-            var payload = new
-            {
-                message,
-                errorCode,
-                traceId
-                // можно добавить details при необходимости (валидация и т.п.)
-            };
-
-            ctx.Response.ContentType = "application/json";
-            ctx.Response.StatusCode = status;
-
-            var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            });
-
-            await ctx.Response.WriteAsync(json);
+            await Write(ctx, HttpStatusCode.BadRequest, ex.Message);
         }
+        catch (NotFoundAppException ex)
+        {
+            await Write(ctx, HttpStatusCode.NotFound, ex.Message);
+        }
+        catch (Exception ex)
+        {
+            await Write(ctx, HttpStatusCode.InternalServerError, "Internal server error", ex.Message);
+        }
+    }
+
+    private static Task Write(HttpContext ctx, HttpStatusCode code, string message, object? details = null)
+    {
+        ctx.Response.ContentType = "application/json";
+        ctx.Response.StatusCode = (int)code;
+        var payload = new { message, details };
+        return ctx.Response.WriteAsync(JsonSerializer.Serialize(payload));
     }
 }
