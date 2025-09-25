@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using GameRequirements.Api.Infrastructure.Extensions;
 using System.Threading.Tasks;
 
 namespace GameRequirements.Api
@@ -18,7 +17,7 @@ namespace GameRequirements.Api
 
             var webApplication = builder.Build();
 
-            await webApplication.SeedData();
+            //await webApplication.SeedData();
 
             // Configure the HTTP request pipeline.
             startup.Configure(webApplication, webApplication.Environment);

@@ -1,0 +1,111 @@
+import * as React from "react";
+import { NavLink, Link, useNavigate } from "react-router-dom";
+import { Button } from "./ui/button";
+import { useAuth } from "../context/AuthContext";
+
+type MeDto = { email: string };
+
+export function Header() {
+    const { isAuthenticated, user, logout, fetchWithAuth } = useAuth();
+    const navigate = useNavigate();
+
+    // Показываем только email
+    const [email, setEmail] = React.useState<string>(user?.email ?? "");
+
+    // Если пользователь авторизован, но email в контексте пуст — подтянем из /api/users/me
+    React.useEffect(() => {
+        let alive = true;
+        (async () => {
+            if (!isAuthenticated) {
+                setEmail("");
+                return;
+            }
+            if (user?.email) {
+                setEmail(user.email);
+                return;
+            }
+            try {
+                // fetchWithAuth есть в твоём контексте — используем его
+                const res = await fetchWithAuth("/api/users/me");
+                if (!alive) return;
+                if (res.ok) {
+                    const me: MeDto = await res.json();
+                    if (me?.email) setEmail(me.email);
+                }
+            } catch {
+                // тихо игнорируем — кнопки «Профиль/Выйти» остаются рабочими
+            }
+        })();
+        return () => {
+            alive = false;
+        };
+    }, [isAuthenticated, user?.email, fetchWithAuth]);
+
+    const linkCls = ({ isActive }: { isActive: boolean }) =>
+        `px-3 py-2 rounded-md text-sm font-medium ${isActive ? "text-primary" : "text-foreground/80 hover:text-primary"
+        }`;
+
+    return (
+        <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/80 backdrop-blur">
+            <div className="mx-auto max-w-6xl px-4 h-14 flex items-center justify-between">
+                {/* Лого */}
+                <div className="flex items-center gap-6">
+                    <Link to="/" className="font-bold text-lg">
+                        GameRequirements
+                    </Link>
+
+                    {/* Навигация */}
+                    <nav className="hidden md:flex items-center gap-1">
+                        <NavLink to="/" className={linkCls} end>
+                            Главная
+                        </NavLink>
+                        <NavLink to="/games" className={linkCls}>
+                            Игры
+                        </NavLink>
+                        <NavLink to="/compare" className={linkCls}>
+                            Сравнить
+                        </NavLink>
+                        <NavLink to="/about" className={linkCls}>
+                            О проекте
+                        </NavLink>
+                    </nav>
+                </div>
+
+                {/* Правый блок */}
+                <div className="flex items-center gap-3">
+                    {isAuthenticated ? (
+                        <>
+                            {/* Только email */}
+                            {email ? (
+                                <span className="text-sm text-foreground/70 hidden sm:inline">
+                                    {email}
+                                </span>
+                            ) : null}
+
+                            <NavLink to="/profile">
+                                <Button variant="secondary">Профиль</Button>
+                            </NavLink>
+                            <Button
+                                onClick={() => {
+                                    logout();
+                                    navigate("/login");
+                                }}
+                            >
+                                Выйти
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <NavLink to="/login">
+                                <Button>Войти</Button>
+                            </NavLink>
+                            <NavLink to="/register">
+                                <Button variant="secondary">Регистрация</Button>
+                            </NavLink>
+                        </>
+                    )}
+                </div>
+            </div>
+        </header>
+    );
+}

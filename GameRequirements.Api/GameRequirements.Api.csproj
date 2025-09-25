@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -7,19 +7,44 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.8" />
-    <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.14.0" />
-    <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.14.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <Compile Remove="Certs\**" />
+    <Compile Remove="Infrastructure\**" />
+    <Content Remove="Certs\**" />
+    <Content Remove="Infrastructure\**" />
+    <EmbeddedResource Remove="Certs\**" />
+    <EmbeddedResource Remove="Infrastructure\**" />
+    <None Remove="Certs\**" />
+    <None Remove="Infrastructure\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Controllers\" />
-    <Folder Include="Infrastructure\Configuration\" />
-    <Folder Include="Infrastructure\Extensions\" />
-    <Folder Include="Infrastructure\Middlewares\" />
+	  <PackageReference Include="AutoMapper" Version="15.0.1" />
+	  <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
+	  <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.10" />
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.8">
+		  <PrivateAssets>all</PrivateAssets>
+		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+	  </PackageReference>
+	  <PackageReference Include="Microsoft.IdentityModel.Abstractions" Version="8.0.1" />
+	  <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.0.1" />
+	  <PackageReference Include="Microsoft.IdentityModel.Logging" Version="8.0.1" />
+	  <PackageReference Include="Microsoft.IdentityModel.Protocols" Version="8.0.1" />
+	  <PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.0.1" />
+	  <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.0.1" />
+	  <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.19.6" />
+	  <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+	  <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="6.5.0" />
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.8">
+		  <PrivateAssets>all</PrivateAssets>
+		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+	  </PackageReference>
+	  <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GameRequirements.Bll\GameRequirements.Bll.csproj" />
+    <ProjectReference Include="..\GameRequirements.Dal\GameRequirements.Dal.csproj" />
+    <ProjectReference Include="..\GameRequirements.Domain\GameRequirements.Domain.csproj" />
   </ItemGroup>
 
 </Project>

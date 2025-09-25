@@ -361,3 +361,18 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# === GameRequirements: ôðîíò (Vite/React) ===
+/GameRequirements.UI/node_modules/
+/GameRequirements.UI/.vite/
+/GameRequirements.UI/build/
+/GameRequirements.UI/dist/
+/GameRequirements.UI/.env*
+/GameRequirements.UI/npm-debug.log*
+
+# === GameRequirements: ñòàòèêà API (ñþäà êëàä¸ì ñáîðêó SPA) ===
+/GameRequirements.Api/wwwroot/*
+!/GameRequirements.Api/wwwroot/.gitkeep
+
+# === Ëîêàëüíûå ñåêðåòû/êîíôèãè áýêåíäà (íå êîììèòèì) ===
+/GameRequirements.Api/Certs
