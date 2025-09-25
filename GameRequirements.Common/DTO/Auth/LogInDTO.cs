@@ -8,7 +8,7 @@ namespace GameRequirements.Common.DTO.Auth
 {
     public class LogInDTO
     {
-        public string Email { get; set; } //Email
-        public string Password { get; set; } //Password
+        public required string Email { get; set; } //Email
+        public required string Password { get; set; } //Password
     }
 }

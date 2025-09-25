@@ -1,4 +1,5 @@
-﻿using System;
+﻿using GameRequirements.Domain.Entites.Completing_computers;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -16,6 +17,10 @@ namespace GameRequirements.Domain.Entites.User
         [StringLength(30)]
         public required string Email { get; set; }
 
+        [Display(Name = "UserName")]
+        [StringLength(30)]
+        public string UserName { get; set; } = null!;
+
         [DataType(DataType.Date)]
         public DateTime LoginDateTime { get; set; }
 
@@ -23,5 +28,7 @@ namespace GameRequirements.Domain.Entites.User
         [Display(Name = "Password")]
         [StringLength(50, MinimumLength = 8, ErrorMessage = "Password cannot be shorter than 8 charicters.")]
         public required string PasswordHash { get; set; }
+
+        public virtual ICollection<DBComputer> Computers { get; set; } = new List<DBComputer>();
     }
 }

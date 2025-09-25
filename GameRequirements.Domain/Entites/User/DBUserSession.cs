@@ -13,17 +13,17 @@ namespace GameRequirements.Domain.Entites.User
         [ForeignKey("UserId")]
         public long UserId { get; set; }  // внешний ключ на пользователя
 
-        public DBUser User { get; set; }
+        public DBUser User { get; set; } = null!;
 
         [Required]
         [Display(Name = "RefreshToken")]
         [StringLength(200)]
-        public string RefreshToken { get; set; }  // токен обновления
+        public required string RefreshToken { get; set; }  // токен обновления
 
         [Required]
         [Display(Name = "JwtId")]
         [StringLength(100)]
-        public string JwtId { get; set; }  // ID JWT токена
+        public required string JwtId { get; set; }  // ID JWT токена
 
         [Required]
         public DateTime RefreshTokenExpiration { get; set; }  // срок действия токена

@@ -4,6 +4,7 @@ using GameRequirements.Domain.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GameRequirements.Api.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20250925113035_002AddCompletingPC")]
+    partial class _002AddCompletingPC
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -36,9 +39,6 @@ namespace GameRequirements.Api.Migrations
                     b.Property<int>("RAM")
                         .HasColumnType("int");
 
-                    b.Property<long>("UserId")
-                        .HasColumnType("bigint");
-
                     b.Property<Guid>("Uuid")
                         .HasColumnType("uniqueidentifier");
 
@@ -48,8 +48,6 @@ namespace GameRequirements.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ProcessorId");
-
-                    b.HasIndex("UserId");
 
                     b.HasIndex("VideoCardId");
 
@@ -141,18 +139,16 @@ namespace GameRequirements.Api.Migrations
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
 
                     b.Property<string>("MinCpuModel")
                         .IsRequired()
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("MinGpuModel")
                         .IsRequired()
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("MinRamGB")
                         .HasColumnType("int");
@@ -164,13 +160,11 @@ namespace GameRequirements.Api.Migrations
 
                     b.Property<string>("RecCpuModel")
                         .IsRequired()
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("RecGpuModel")
                         .IsRequired()
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("RecRamGB")
                         .HasColumnType("int");
@@ -262,12 +256,6 @@ namespace GameRequirements.Api.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("GameRequirements.Domain.Entites.User.DBUser", "User")
-                        .WithMany("Computers")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("GameRequirements.Domain.Entites.Completing_computers.DBVideoCard", "VideoCard")
                         .WithMany()
                         .HasForeignKey("VideoCardId")
@@ -275,8 +263,6 @@ namespace GameRequirements.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Processor");
-
-                    b.Navigation("User");
 
                     b.Navigation("VideoCard");
                 });
@@ -290,11 +276,6 @@ namespace GameRequirements.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("GameRequirements.Domain.Entites.User.DBUser", b =>
-                {
-                    b.Navigation("Computers");
                 });
 #pragma warning restore 612, 618
         }

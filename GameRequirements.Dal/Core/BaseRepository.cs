@@ -151,5 +151,10 @@ namespace GameRequirements.Dal.Core
         {
             return (page - 1) * size;
         }
+
+        protected IEnumerable<TEntity> GetAll<TEntity>() where TEntity : BaseId
+        {
+            return dataContext.Set<TEntity>().AsNoTracking().ToList();
+        }
     }
 }

@@ -60,6 +60,8 @@ namespace GameRequirements.Api
 
             // Репозитории
             services.AddScoped<UserRepository>();
+            services.AddScoped<HardwareRepository>();
+            services.AddScoped<ComputerRepository>();
 
             // Токены
             services.AddScoped<TokenService>();
@@ -94,15 +96,6 @@ namespace GameRequirements.Api
         // 2) HTTP-пайплайн
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
-            using (var scope = app.ApplicationServices.CreateScope())
-            {
-                var context = scope.ServiceProvider.GetRequiredService<DataContext>();
-                if (context.Database.CanConnect())
-                    Console.WriteLine("✅ Подключение к базе данных успешно!");
-                else
-                    Console.WriteLine("❌ Не удалось подключиться к базе данных.");
-            }
-
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();

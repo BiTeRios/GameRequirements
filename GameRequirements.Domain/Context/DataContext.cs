@@ -1,4 +1,6 @@
-﻿using GameRequirements.Domain.Entites.User;
+﻿using GameRequirements.Domain.Entites.Completing_computers;
+using GameRequirements.Domain.Entites.Games;
+using GameRequirements.Domain.Entites.User;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -14,6 +16,10 @@ namespace GameRequirements.Domain.Context
 
         public DbSet<DBUser> Users { get; set; }
         public DbSet<DBUserSession> Sessions { get; set; }
+        public DbSet<DBComputer> Computers { get; set; }
+        public DbSet<DBProcessor> Processors { get; set; }
+        public DbSet<DBVideoCard> VideoCards { get; set; }
+        public DbSet<DBGames> Games { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
