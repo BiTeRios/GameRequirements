@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.AspNetCore.Diagnostics;
 
 namespace GameRequirements.Api
 {
@@ -62,14 +63,18 @@ namespace GameRequirements.Api
             services.AddScoped<UserRepository>();
             services.AddScoped<HardwareRepository>();
             services.AddScoped<ComputerRepository>();
+            services.AddScoped<GamesRepository>();
 
             // Токены
             services.AddScoped<TokenService>();
 
             // Сервисы
             services.AddScoped<ISessionBL, SessionBL>();
+            services.AddScoped<IUserBL, UserBL>();
+            services.AddScoped<IComputerBL, ComputerBL>();
+            services.AddScoped<IPerformanceBL, PerformanceBL>();
             services.AddScoped<BussinesLogic>();
-            services.AddAutoMapper(typeof(Profiles).Assembly);
+            services.AddAutoMapper(cfg => { }, typeof(Profiles).Assembly);
 
             var tokenCfg = new TokenConfiguration();
         Configuration.GetSection("TokenConfiguration").Bind(tokenCfg);
@@ -127,6 +132,17 @@ namespace GameRequirements.Api
 
                 // SPA fallback — любые НЕ-API маршруты отдаём index.html
                 endpoints.MapFallbackToFile("index.html");
+            });
+            app.UseExceptionHandler(errorApp =>
+            {
+                errorApp.Run(async context =>
+                {
+                    context.Response.StatusCode = 500;
+                    context.Response.ContentType = "application/json";
+                    var feature = context.Features.Get<IExceptionHandlerFeature>();
+                    var message = feature?.Error?.Message ?? "Server error";
+                    await context.Response.WriteAsync($"{{\"message\":\"{message}\"}}");
+                });
             });
         }
     }
