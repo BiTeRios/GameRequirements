@@ -27,5 +27,14 @@ namespace GameRequirements.Dal.Core
                 .Where(c => c.UserId == userId)
                 .ToListAsync();
         }
+        public async Task<DBComputer?> GetByIdForUserAsync(long userId, long id)
+        {
+            return await _dataContext.Computers
+                .Include(c => c.Processor)
+                .Include(c => c.VideoCard)
+                .FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId);
+        }
+        public void Update(DBComputer entity) => _dataContext.Computers.Update(entity);
+        public void Remove(DBComputer entity) => _dataContext.Computers.Remove(entity);
     }
 }

@@ -70,6 +70,51 @@ namespace GameRequirements.Api.Controllers
             }
         }
 
+        [HttpPut("{id:long}")]
+        public async Task<IActionResult> Update(long id, [FromBody] ComputerDTO dto)
+        {
+            if (dto is null) return BadRequest(new { message = "Body is required" });
+
+            var userId = await ResolveUserIdAsync();
+            if (userId <= 0) return Conflict(new { message = "Invalid userId in access token." });
+
+            static string Norm(string s) => string.IsNullOrWhiteSpace(s) ? "" :
+            System.Text.RegularExpressions.Regex.Replace(
+             s.Replace('\u00A0', ' ').Trim(),  // <-- ' ' (char) ✅
+             @"\s{2,}", " ");
+
+            try
+            {
+                var updated = await _computerBL.UpdateComputerForUserAsync(userId, id, dto);
+                return Ok(updated);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new { message = "Конфигурация не найдена" });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpDelete("{id:long}")]
+        public async Task<IActionResult> Delete(long id)
+        {
+            var userId = await ResolveUserIdAsync();
+            if (userId <= 0) return Conflict(new { message = "Invalid userId in access token." });
+
+            try
+            {
+                await _computerBL.DeleteComputerForUserAsync(userId, id);
+                return NoContent();
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new { message = "Конфигурация не найдена" });
+            }
+        }
+
         // ----------------- helpers -----------------
 
         /// <summary>

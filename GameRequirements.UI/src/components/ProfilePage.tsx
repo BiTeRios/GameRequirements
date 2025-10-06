@@ -46,14 +46,15 @@ interface ProfilePageProps {
 }
 
 type Config = {
-    id: string;
+    id: string;          // локальный uuid для UI
+    dbId?: number;       // <-- реальный ID записи в БД
     name: string;
     cpu: string;
     gpu: string;
-    ram: string;
+    ram: string;         // "16GB"
     createdAt: string;
     isEditing?: boolean;
-};
+}
 
 const LS_KEY = "gr:configs:v1";
 const RAM_OPTIONS = ["8GB", "16GB", "32GB", "64GB"];
@@ -105,16 +106,72 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
     // ---- мульти-конфиги ----
     const [configs, setConfigs] = useState<Config[]>(() => loadConfigs());
     useEffect(() => saveConfigs(configs), [configs]);
-
+    const norm = (s: string) =>
+        s?.replace(/\u00A0/g, " ").trim().replace(/\s{2,}/g, " ") ?? "";
     const startEdit = (id: string) =>
         setConfigs((p) => p.map((c) => (c.id === id ? { ...c, isEditing: true } : c)));
     const cancelEdit = (id: string) =>
         setConfigs((p) => p.map((c) => (c.id === id ? { ...c, isEditing: false } : c)));
     const applyEdit = (id: string, patch: Partial<Config>) =>
         setConfigs((p) => p.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-    const saveEdit = (id: string) =>
-        setConfigs((p) => p.map((c) => (c.id === id ? { ...c, isEditing: false } : c)));
-    const deleteConfig = (id: string) => setConfigs((p) => p.filter((c) => c.id !== id));
+    const saveEdit = async (id: string) => {
+        const cfg = configs.find(c => c.id === id);
+        if (!cfg) return;
+
+        const cpuName = norm(cfg.cpu);
+        const gpuName = norm(cfg.gpu);
+        const ramGB = parseInt(cfg.ram.replace(/\D/g, "") || "16", 10);
+
+        try {
+            if (cfg.dbId) {
+                const res = await fetchWithAuth(`/api/computers/${cfg.dbId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ cpuName, gpuName, ramGB }),
+                });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => null);
+                    throw new Error(data?.message || `Не удалось обновить (${res.status})`);
+                }
+            } else {
+                const res = await fetchWithAuth(`/api/computers`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ cpuName, gpuName, ramGB }),
+                });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => null);
+                    throw new Error(data?.message || `Не удалось сохранить (${res.status})`);
+                }
+                const created = await res.json().catch(() => null);
+                const dbId = created?.id ?? created?.Id;
+                if (dbId) {
+                    setConfigs(p => p.map(c => c.id === id ? { ...c, dbId } : c));
+                }
+            }
+
+            setConfigs(p => p.map(c =>
+                c.id === id ? { ...c, cpu: cpuName, gpu: gpuName, ram: `${ramGB}GB`, isEditing: false } : c
+            ));
+        } catch (e: any) {
+            console.error(e);
+            alert(e?.message || "Ошибка сохранения");
+        }
+    };
+
+    const deleteConfig = async (id: string) => {
+        const cfg = configs.find(c => c.id === id);
+        if (!cfg) return;
+
+        try {
+            if (cfg.dbId) {
+                await fetchWithAuth(`/api/computers/${cfg.dbId}`, { method: "DELETE" });
+                // даже если 404 — удалим локально, чтобы UI не вис
+            }
+        } catch { /* проглотим, UI всё равно почистим */ }
+
+        setConfigs(p => p.filter(c => c.id !== id));
+    };
 
     const goToGames = (cfg: Config) => {
         const q = new URLSearchParams({
@@ -179,11 +236,13 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
             // (опционально) можно прочитать созданный объект
             // const created = await res.json();
-
+            const created = await res.json().catch(() => null);
+            const dbId = created?.id ?? created?.Id; // на всякий случай оба варианта
             // если POST прошёл — сохраняем локальную карточку (как раньше)
             const id = (crypto as any)?.randomUUID?.() ?? Math.random().toString(36).slice(2);
             const cfg: Config = {
                 id,
+                dbId,                       // <-- сохраняем ID из БД
                 name: newName.trim(),
                 cpu: cpuName,
                 gpu: gpuName,
@@ -360,18 +419,26 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                                                             />
                                                         </div>
                                                         <div className="space-y-1">
-                                                            <Label>CPU</Label>
-                                                            <Input
-                                                                value={cfg.cpu}
-                                                                onChange={(e) => applyEdit(cfg.id, { cpu: e.target.value })}
-                                                            />
+                                                                <Label>Процессор (CPU)</Label>
+                                                                <AutocompleteInput
+                                                                    value={cfg.cpu}
+                                                                    onChange={(v) => applyEdit(cfg.id, { cpu: v })}
+                                                                    placeholder="Начните вводить название CPU"
+                                                                    fetcher={findCpus}
+                                                                    take={15}
+                                                                    minLength={1}
+                                                                />
                                                         </div>
                                                         <div className="space-y-1">
-                                                            <Label>GPU</Label>
-                                                            <Input
-                                                                value={cfg.gpu}
-                                                                onChange={(e) => applyEdit(cfg.id, { gpu: e.target.value })}
-                                                            />
+                                                                <Label>Видеокарта (GPU)</Label>
+                                                                <AutocompleteInput
+                                                                    value={cfg.gpu}
+                                                                    onChange={(v) => applyEdit(cfg.id, { gpu: v })}
+                                                                    placeholder="Начните вводить название GPU"
+                                                                    fetcher={findGpus}
+                                                                    take={15}
+                                                                    minLength={1}
+                                                                />
                                                         </div>
                                                         <div className="space-y-1">
                                                             <Label>RAM</Label>
