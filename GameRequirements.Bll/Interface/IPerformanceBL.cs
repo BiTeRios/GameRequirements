@@ -15,5 +15,7 @@ namespace GameRequirements.Bll.Interface
     {
         Task<PerformanceLevel> EvaluateAsync(GameDTO game, ComputerDTO computer);
         Task<Dictionary<string, PerformanceLevel>> EvaluateAllGamesAsync(ComputerDTO computer, int batchSize = 30);
+        Task<List<DBProcessor>> FindCpusAsync(string? q, int take = 20);
+        Task<List<DBVideoCard>> FindGpusAsync(string? q, int take = 20);
     }
 }

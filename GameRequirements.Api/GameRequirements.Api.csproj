@@ -19,7 +19,6 @@
 
   <ItemGroup>
 	  <PackageReference Include="AutoMapper" Version="15.0.1" />
-	  <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
 	  <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.10" />
 	  <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.8">
 		  <PrivateAssets>all</PrivateAssets>
@@ -43,7 +42,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\GameRequirements.Bll\GameRequirements.Bll.csproj" />
-    <ProjectReference Include="..\GameRequirements.Dal\GameRequirements.Dal.csproj" />
+    <ProjectReference Include="..\GameRequirements.Common\GameRequirements.Common.csproj" />
     <ProjectReference Include="..\GameRequirements.Domain\GameRequirements.Domain.csproj" />
   </ItemGroup>
 

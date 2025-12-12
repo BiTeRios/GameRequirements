@@ -2,7 +2,8 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getMe, UserPublic } from "../api/users";
-
+import AutocompleteInput from "./AutocompleteInput";
+import { findCpus, findGpus } from "../api/hardware";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -10,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
+
 import {
     Settings,
     Monitor,
@@ -37,40 +39,24 @@ import {
     SelectTrigger,
     SelectValue,
 } from "./ui/select";
-
+const norm = (s: string) =>
+    !s ? "" : s.replace(/\u00A0/g, " ").trim().replace(/\s{2,}/g, " ");
 interface ProfilePageProps {
     onNavigate?: (page: string) => void;
 }
 
 type Config = {
-    id: string;
+    id: string;          // локальный uuid для UI
+    dbId?: number;       // <-- реальный ID записи в БД
     name: string;
     cpu: string;
     gpu: string;
-    ram: string;
+    ram: string;         // "16GB"
     createdAt: string;
     isEditing?: boolean;
-};
+}
 
 const LS_KEY = "gr:configs:v1";
-
-// демо-списки
-const CPU_OPTIONS = [
-    "Intel Core i5-10400F",
-    "Intel Core i5-12400",
-    "Intel Core i7-12700",
-    "AMD Ryzen 5 5600",
-    "AMD Ryzen 7 5800X",
-    "AMD Ryzen 5 7600",
-];
-const GPU_OPTIONS = [
-    "NVIDIA GeForce GTX 1660 Super",
-    "NVIDIA GeForce RTX 3060",
-    "NVIDIA GeForce RTX 3070",
-    "AMD Radeon RX 6600",
-    "AMD Radeon RX 6700 XT",
-    "AMD Radeon RX 7800 XT",
-];
 const RAM_OPTIONS = ["8GB", "16GB", "32GB", "64GB"];
 
 function loadConfigs(): Config[] {
@@ -120,16 +106,72 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
     // ---- мульти-конфиги ----
     const [configs, setConfigs] = useState<Config[]>(() => loadConfigs());
     useEffect(() => saveConfigs(configs), [configs]);
-
+    const norm = (s: string) =>
+        s?.replace(/\u00A0/g, " ").trim().replace(/\s{2,}/g, " ") ?? "";
     const startEdit = (id: string) =>
         setConfigs((p) => p.map((c) => (c.id === id ? { ...c, isEditing: true } : c)));
     const cancelEdit = (id: string) =>
         setConfigs((p) => p.map((c) => (c.id === id ? { ...c, isEditing: false } : c)));
     const applyEdit = (id: string, patch: Partial<Config>) =>
         setConfigs((p) => p.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-    const saveEdit = (id: string) =>
-        setConfigs((p) => p.map((c) => (c.id === id ? { ...c, isEditing: false } : c)));
-    const deleteConfig = (id: string) => setConfigs((p) => p.filter((c) => c.id !== id));
+    const saveEdit = async (id: string) => {
+        const cfg = configs.find(c => c.id === id);
+        if (!cfg) return;
+
+        const cpuName = norm(cfg.cpu);
+        const gpuName = norm(cfg.gpu);
+        const ramGB = parseInt(cfg.ram.replace(/\D/g, "") || "16", 10);
+
+        try {
+            if (cfg.dbId) {
+                const res = await fetchWithAuth(`/api/computers/${cfg.dbId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ cpuName, gpuName, ramGB }),
+                });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => null);
+                    throw new Error(data?.message || `Не удалось обновить (${res.status})`);
+                }
+            } else {
+                const res = await fetchWithAuth(`/api/computers`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ cpuName, gpuName, ramGB }),
+                });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => null);
+                    throw new Error(data?.message || `Не удалось сохранить (${res.status})`);
+                }
+                const created = await res.json().catch(() => null);
+                const dbId = created?.id ?? created?.Id;
+                if (dbId) {
+                    setConfigs(p => p.map(c => c.id === id ? { ...c, dbId } : c));
+                }
+            }
+
+            setConfigs(p => p.map(c =>
+                c.id === id ? { ...c, cpu: cpuName, gpu: gpuName, ram: `${ramGB}GB`, isEditing: false } : c
+            ));
+        } catch (e: any) {
+            console.error(e);
+            alert(e?.message || "Ошибка сохранения");
+        }
+    };
+
+    const deleteConfig = async (id: string) => {
+        const cfg = configs.find(c => c.id === id);
+        if (!cfg) return;
+
+        try {
+            if (cfg.dbId) {
+                await fetchWithAuth(`/api/computers/${cfg.dbId}`, { method: "DELETE" });
+                // даже если 404 — удалим локально, чтобы UI не вис
+            }
+        } catch { /* проглотим, UI всё равно почистим */ }
+
+        setConfigs(p => p.filter(c => c.id !== id));
+    };
 
     const goToGames = (cfg: Config) => {
         const q = new URLSearchParams({
@@ -142,6 +184,8 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
     // ---- диалог создания ----
     const [isAddOpen, setIsAddOpen] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
     const [newName, setNewName] = useState("");
     const [newCpu, setNewCpu] = useState<string | undefined>();
     const [newGpu, setNewGpu] = useState<string | undefined>();
@@ -152,24 +196,74 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
         [newName, newCpu, newGpu, newRam]
     );
 
-    const createConfig = () => {
-        if (!canCreate) return;
-        const id = (crypto as any)?.randomUUID?.() ?? Math.random().toString(36).slice(2);
-        const cfg: Config = {
-            id,
-            name: newName.trim(),
-            cpu: newCpu!,
-            gpu: newGpu!,
-            ram: newRam!,
-            createdAt: new Date().toISOString(),
-        };
-        setConfigs((p) => [cfg, ...p]);
-        setNewName("");
-        setNewCpu(undefined);
-        setNewGpu(undefined);
-        setNewRam("16GB");
-        setIsAddOpen(false);
+    // ЗАМЕНИ ЭТУ ФУНКЦИЮ ПОЛНОСТЬЮ
+    const createConfig = async () => {
+        if (!canCreate || saving) return;
+
+        setSaveError(null);
+        setSaving(true);
+
+        // нормализация значений
+        const cpuName = norm(newCpu ?? "");
+        const gpuName = norm(newGpu ?? "");
+        const ramGB = parseInt(String(newRam).replace(/[^0-9]/g, "")) || 0;
+
+        if (!cpuName || !gpuName || !ramGB) {
+            setSaveError("Заполни CPU, GPU и RAM.");
+            setSaving(false);
+            return;
+        }
+
+        try {
+            // запрос на БЭК (используем твой fetchWithAuth)
+            const res = await fetchWithAuth("/api/computers", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ cpuName, gpuName, ramGB }),
+            });
+
+            // чтобы точно видеть в Network/Console
+            console.log("POST /api/computers →", res.status);
+
+            if (!res.ok) {
+                let msg = "Ошибка сохранения конфигурации";
+                try {
+                    const data = await res.json();
+                    if (data?.message) msg = data.message;
+                } catch { /* ignore */ }
+                throw new Error(msg + ` (${res.status})`);
+            }
+
+            // (опционально) можно прочитать созданный объект
+            // const created = await res.json();
+            const created = await res.json().catch(() => null);
+            const dbId = created?.id ?? created?.Id; // на всякий случай оба варианта
+            // если POST прошёл — сохраняем локальную карточку (как раньше)
+            const id = (crypto as any)?.randomUUID?.() ?? Math.random().toString(36).slice(2);
+            const cfg: Config = {
+                id,
+                dbId,                       // <-- сохраняем ID из БД
+                name: newName.trim(),
+                cpu: cpuName,
+                gpu: gpuName,
+                ram: `${ramGB}GB`,
+                createdAt: new Date().toISOString(),
+            };
+            setConfigs((p) => [cfg, ...p]);
+
+            // сброс формы и закрытие диалога
+            setNewName("");
+            setNewCpu(undefined);
+            setNewGpu(undefined);
+            setNewRam("16GB");
+            setIsAddOpen(false);
+        } catch (e: any) {
+            setSaveError(e?.message || "Не удалось сохранить.");
+        } finally {
+            setSaving(false);
+        }
     };
+
 
     return (
         <div className="space-y-8">
@@ -325,18 +419,26 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                                                             />
                                                         </div>
                                                         <div className="space-y-1">
-                                                            <Label>CPU</Label>
-                                                            <Input
-                                                                value={cfg.cpu}
-                                                                onChange={(e) => applyEdit(cfg.id, { cpu: e.target.value })}
-                                                            />
+                                                                <Label>Процессор (CPU)</Label>
+                                                                <AutocompleteInput
+                                                                    value={cfg.cpu}
+                                                                    onChange={(v) => applyEdit(cfg.id, { cpu: v })}
+                                                                    placeholder="Начните вводить название CPU"
+                                                                    fetcher={findCpus}
+                                                                    take={15}
+                                                                    minLength={1}
+                                                                />
                                                         </div>
                                                         <div className="space-y-1">
-                                                            <Label>GPU</Label>
-                                                            <Input
-                                                                value={cfg.gpu}
-                                                                onChange={(e) => applyEdit(cfg.id, { gpu: e.target.value })}
-                                                            />
+                                                                <Label>Видеокарта (GPU)</Label>
+                                                                <AutocompleteInput
+                                                                    value={cfg.gpu}
+                                                                    onChange={(v) => applyEdit(cfg.id, { gpu: v })}
+                                                                    placeholder="Начните вводить название GPU"
+                                                                    fetcher={findGpus}
+                                                                    take={15}
+                                                                    minLength={1}
+                                                                />
                                                         </div>
                                                         <div className="space-y-1">
                                                             <Label>RAM</Label>
@@ -377,40 +479,26 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     <div className="space-y-1">
                                         <Label>Процессор (CPU)</Label>
-                                        <Select value={newCpu} onValueChange={setNewCpu}>
-                                            <SelectTrigger className="w-full">
-                                                <SelectValue placeholder="Выберите CPU" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectGroup>
-                                                    <SelectLabel>Популярные CPU</SelectLabel>
-                                                    {CPU_OPTIONS.map((c) => (
-                                                        <SelectItem key={c} value={c}>
-                                                            {c}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectGroup>
-                                            </SelectContent>
-                                        </Select>
+                                        <AutocompleteInput
+                                            value={newCpu ?? ""}
+                                            onChange={(v) => setNewCpu(v || undefined)}
+                                            placeholder="Начните вводить название CPU"
+                                            fetcher={findCpus}
+                                            take={15}
+                                            minLength={1}
+                                        />
                                     </div>
 
                                     <div className="space-y-1">
                                         <Label>Видеокарта (GPU)</Label>
-                                        <Select value={newGpu} onValueChange={setNewGpu}>
-                                            <SelectTrigger className="w-full">
-                                                <SelectValue placeholder="Выберите GPU" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectGroup>
-                                                    <SelectLabel>Популярные GPU</SelectLabel>
-                                                    {GPU_OPTIONS.map((g) => (
-                                                        <SelectItem key={g} value={g}>
-                                                            {g}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectGroup>
-                                            </SelectContent>
-                                        </Select>
+                                        <AutocompleteInput
+                                            value={newGpu ?? ""}
+                                            onChange={(v) => setNewGpu(v || undefined)}
+                                            placeholder="Начните вводить название GPU"
+                                            fetcher={findGpus}
+                                            take={15}
+                                            minLength={1}
+                                        />
                                     </div>
                                 </div>
 
@@ -438,11 +526,13 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                                 <Button variant="outline" onClick={() => setIsAddOpen(false)}>
                                     Отмена
                                 </Button>
-                                <Button disabled={!canCreate} onClick={createConfig} className="bg-primary hover:bg-primary/80">
-                                    Сохранить
+                                <Button disabled={!canCreate || saving} onClick={createConfig} className="bg-primary hover:bg-primary/80">
+                                    {saving ? "Сохраняю..." : "Сохранить"}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
+                        {saveError && <div className="text-destructive text-sm mt-1">{saveError}</div>}
+
                     </Dialog>
                 </TabsContent>
 

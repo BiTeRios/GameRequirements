@@ -39,7 +39,7 @@ export function HomePage({ onCheckCompatibility }: HomePageProps) {
               ПОТЯНЕТ ЛИ МОЙ ПК?
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-              Выбери CPU и GPU — получи список игр с оценкой FPS и индикаторами совместимости в <span className="text-primary">киберпанк стиле</span>
+              Выбери CPU и GPU — получи список игр с оценкой FPS и индикаторами совместимости
             </p>
           </div>
           

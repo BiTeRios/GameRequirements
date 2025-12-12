@@ -113,6 +113,10 @@ namespace GameRequirements.Bll.BL
 
             return result;
         }
+        public async Task<List<DBProcessor>> FindCpusAsync(string? q, int take = 20)
+        => await hardwareRepository.FindCpusAsync(q, take);
 
+        public async Task<List<DBVideoCard>> FindGpusAsync(string? q, int take = 20)
+            => await hardwareRepository.FindGpusAsync(q, take);
     }
 }

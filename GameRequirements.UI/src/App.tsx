@@ -17,7 +17,7 @@ import { TermsPage } from "./components/TermsPage";
 import { PrivacyPage } from "./components/PrivacyPage";
 import { RequireAuth } from "./routes/RequireAuth";
 import { NotFoundPage } from "./routes/NotFoundPage";
-
+import { PredictionsPage } from "./components/PredictionsPage";
 function Layout() {
     return (
         <div className="min-h-screen flex flex-col">
@@ -36,7 +36,7 @@ export default function App() {
             <Route element={<Layout />}>
                 {/* Публичные страницы */}
                 <Route index element={<HomePage />} />
-                <Route path="/results" element={<ResultsPage />} />
+                <Route path="/results" element={<PredictionsPage />} />
                 <Route path="/games" element={<GamesPage />} />
                 <Route path="/compare" element={<ComparePage />} />
                 <Route path="/about" element={<AboutPage />} />

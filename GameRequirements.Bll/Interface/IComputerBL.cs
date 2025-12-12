@@ -12,5 +12,7 @@ namespace GameRequirements.Bll.Interface
     {
         Task<DBComputer> AddComputerForUserAsync(long userId, ComputerDTO computerDto);
         Task<List<DBComputer>> GetUserComputersAsync(long userId);
+        Task<DBComputer> UpdateComputerForUserAsync(long userId, long computerId, ComputerDTO computerDto);
+        Task DeleteComputerForUserAsync(long userId, long computerId);
     }
 }

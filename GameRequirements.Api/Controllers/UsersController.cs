@@ -1,12 +1,9 @@
-﻿// GameRequirements.Api/Controllers/UsersController.cs
-using GameRequirements.Dal.Core;
-using GameRequirements.Common.DTO.Users; // если нужно, но мы вернём анонимку
+﻿using GameRequirements.Bll.Interface;
+using GameRequirements.Common.DTO.Users;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
-using System.Threading.Tasks;
+using System.Security.Claims;
 
 namespace GameRequirements.Api.Controllers
 {
@@ -14,9 +11,9 @@ namespace GameRequirements.Api.Controllers
     [Route("api/[controller]")]
     public class UsersController : ControllerBase
     {
-        private readonly UserRepository _users;
+        private readonly IUserBL _users;
 
-        public UsersController(UserRepository users) // <-- БЕЗ IMapper
+        public UsersController(IUserBL users)
         {
             _users = users;
         }
@@ -25,27 +22,21 @@ namespace GameRequirements.Api.Controllers
         [Authorize]
         public async Task<IActionResult> Me()
         {
-            try
-            {
-                // достаём UUID из токена
-                var uuidStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
-                           ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+            // достаём UUID из токена (sub / NameIdentifier)
+            var sub = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                      ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
 
-                if (string.IsNullOrWhiteSpace(uuidStr) || !Guid.TryParse(uuidStr, out var uuid))
-                    return Unauthorized(new { message = "Invalid token subject (sub)" });
+            if (string.IsNullOrWhiteSpace(sub) || !Guid.TryParse(sub, out var uuid))
+                return Unauthorized(new { message = "Invalid token subject (sub)" });
 
-                var dbUser = await _users.GetByUuidAsync(uuid);
-                if (dbUser == null)
-                    return NotFound(new { message = "User not found" });
+            var dto = await _users.GetByUuidAsync(uuid);
+            if (dto is null)
+                return NotFound(new { message = "User not found" });
 
-                // Возвращаем ТОЛЬКО email — как ты просил
-                return Ok(new { email = dbUser.Email });
-            }
-            catch (Exception ex)
-            {
-                // временно даём понятный ответ, чтобы увидеть первопричину
-                return StatusCode(500, new { message = "Internal error in /users/me", error = ex.Message });
-            }
+            // Если фронту нужен только email — раскомментируй:
+            // return Ok(new { email = dto.Email });
+
+            return Ok(dto); // Вернём весь UserPublicDto: Uuid, Email, LoginDateTime
         }
     }
 }

@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace GameRequirements.Common.DTO.Users
+﻿namespace GameRequirements.Common.DTO.Users
 {
     public class UserPublicDto
     {
